@@ -52,5 +52,5 @@ A feature-rich Python-based gaming application with user accounts, multiple game
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/yourusername/gaming-platform.git
-cd gaming-platform
+git clone https://github.com/zabi22/arcadia-hub.git)
+cd arcadia-hub
