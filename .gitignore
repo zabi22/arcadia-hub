@@ -7,3 +7,6 @@ __pycache__/
 
 # IDEs
 .idea/
+
+# Virtual Environment
+.venv/
