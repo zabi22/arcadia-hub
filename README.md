@@ -1,56 +1,49 @@
-#  Gaming Platform
+## How to Play
 
-A feature-rich Python-based gaming application with user accounts, multiple games, leaderboards, and a complete friend system. Play games locally or with friends, track your progress, and compete on global leaderboards!
+1. Register a new account or login with existing credentials
+2. Collect daily login rewards to build your streak
+3. Play games to earn coins and climb the leaderboard
+4. Add friends and challenge them
+5. Customize your experience in settings
 
-## Features
+## Game Controls
 
-### Games
-- **Tic Tac Toe** - Classic two-player strategy game
-- **2048** - Merge tiles to reach 2048 using arrow keys
-- **Hangman** - Guess the word before running out of attempts
-- **Trivia Quiz** - Answer multiple-choice questions to earn points
+| Game | Controls |
+|------|----------|
+| Snake | Arrow keys to move, P to pause |
+| Tic Tac Toe | Click to place X |
+| Memory Match | Click cards to flip |
+| Reaction Time | Click when screen turns green |
+| Word Guess | Type letters, Enter to submit |
+| Pong | W/S or Arrow keys to move paddle |
 
-### User System
-- User registration with email validation
-- Secure login with password hashing
-- User profiles with custom avatar colors
-- Password strength requirements (min 6 characters)
+## Tech Stack
 
-### Progress & Statistics
-- Track game scores and levels
-- View complete game history
-- See last played timestamps
-- Monitor improvement over time
+- **Python 3** - Core language
+- **Tkinter** - GUI framework
+- **SQLite** - Database for users, scores, and messages
+- **bcrypt** - Secure password hashing
 
-### Leaderboards
-- Global leaderboards for each game
-- Top 5 rankings with medals (🥇🥈🥉)
-- Date-based score tracking
-- Real-time score updates
+## Database Schema
 
-### Friend System
-- Add friends from registered users
-- Friend request system (pending/accepted)
-- Accept or reject friend requests
-- View your friends list
-- Compete with friends on leaderboards
+- Users (accounts, settings, stats)
+- Games (game library)
+- Scores (leaderboard data)
+- Friends (social connections)
+- Messages (chat history)
 
-### Modern UI
-- Dark theme with cyan accents
-- Responsive design
-- Color-coded game buttons
-- Intuitive navigation
+## About
 
-## Getting Started
+I am 15 years old, very interested in coding, programming, ethical hacking, computers, AI, and technology. I built this gaming platform to learn and practice software development skills.
 
-### Prerequisites
-- Python 3.7 or higher
-- tkinter (comes built-in with Python)
-- sqlite3 (comes built-in with Python)
+## License
 
-### Installation
+This project is open source. Feel free to use, modify, and distribute.
 
-1. **Clone the repository:**
-```bash
-git clone https://github.com/zabi22/arcadia-hub.git)
-cd arcadia-hub
+## Future Ideas
+
+- Multiplayer support
+- More games
+- Achievements system
+- Profile customization
+- Mobile app version
