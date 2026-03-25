@@ -1,1018 +1,758 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 import sqlite3
-from datetime import datetime
-import hashlib
+from datetime import datetime, timedelta
+import json
 import random
 import re
 import traceback
+import time
+import math
 
+# --- SECURITY CHECK ---
+try:
+    import bcrypt
+    HAS_BCRYPT = True
+except ImportError:
+    HAS_BCRYPT = False
+    print("⚠️ WARNING: 'bcrypt' module not found. Falling back to SHA-256. Run 'pip install bcrypt' for production security.")
+    import hashlib
 
+# --- CONFIGURATION & CONSTANTS ---
+DB_NAME = 'gaming_app.db'
+THEME_COLORS = {
+    "dark": {
+        "bg": "#1a1a1a", "fg": "#ecf0f1", "accent": "#3498db", "secondary": "#2c3e50",
+        "success": "#2ecc71", "warning": "#f1c40f", "danger": "#e74c3c", "text": "white"
+    },
+    "light": {
+        "bg": "#f5f6fa", "fg": "#2c3e50", "accent": "#2980b9", "secondary": "#dfe6e9",
+        "success": "#27ae60", "warning": "#f39c12", "danger": "#c0392b", "text": "black"
+    }
+}
 
-class Database:
+# --- DATABASE MANAGER ---
+class DatabaseManager:
     def __init__(self):
+        self.conn = sqlite3.connect(DB_NAME)
+        self.conn.row_factory = sqlite3.Row  # Access columns by name
+        self.cursor = self.conn.cursor()
+        self._init_db()
+        self._run_migrations()
+
+    def _init_db(self):
+        """Initialize database tables with modern schema."""
+        tables = [
+            '''CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login DATE,
+                streak INTEGER DEFAULT 0,
+                coins INTEGER DEFAULT 0,
+                avatar_config TEXT,
+                settings_config TEXT
+            )''',
+            '''CREATE TABLE IF NOT EXISTS games (
+                game_id INTEGER PRIMARY KEY,
+                name TEXT UNIQUE,
+                category TEXT,
+                play_count INTEGER DEFAULT 0
+            )''',
+            '''CREATE TABLE IF NOT EXISTS scores (
+                score_id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                game_name TEXT,
+                score INTEGER,
+                achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(user_id)
+            )''',
+            '''CREATE TABLE IF NOT EXISTS friends (
+                friendship_id INTEGER PRIMARY KEY,
+                user_id_1 INTEGER,
+                user_id_2 INTEGER,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )''',
+            '''CREATE TABLE IF NOT EXISTS messages (
+                msg_id INTEGER PRIMARY KEY,
+                sender_id INTEGER,
+                receiver_id INTEGER,
+                content TEXT,
+                is_read INTEGER DEFAULT 0,
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )'''
+        ]
         try:
-            self.conn = sqlite3.connect('gaming_app.db')
-            self.cursor = self.conn.cursor()
-            self.create_tables()
-            print("✓ Database initialized successfully")
+            for table in tables:
+                self.cursor.execute(table)
+            self.conn.commit()
+            print("✓ Database tables verified")
         except Exception as e:
-            print(f"✗ Database error: {e}")
-            traceback.print_exc()
+            print(f"✗ Database Init Error: {e}")
 
-    def create_tables(self):
+    def _run_migrations(self):
+        """Handle schema updates safely."""
         try:
-            self.cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id INTEGER PRIMARY KEY,
-                    username TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    created_date TEXT,
-                    avatar_color TEXT DEFAULT '#3498db'
-                )
-            ''')
+            # Check if columns exist, if not add them
+            self.cursor.execute("PRAGMA table_info(users)")
+            columns = [info[1] for info in self.cursor.fetchall()]
+            
+            # --- CRITICAL FIX FOR PASSWORD_HASH MISSING ---
+            # If the old table exists without password_hash (likely named 'password'), we need to migrate or rename
+            if 'password' in columns and 'password_hash' not in columns:
+                 print("⚠️ Migrating 'password' column to 'password_hash'...")
+                 self.cursor.execute("ALTER TABLE users RENAME COLUMN password TO password_hash")
 
-            self.cursor.execute('''
-                CREATE TABLE IF NOT EXISTS progress (
-                    progress_id INTEGER PRIMARY KEY,
-                    user_id INTEGER,
-                    game_name TEXT,
-                    score INTEGER,
-                    level INTEGER,
-                    last_played TEXT,
-                    FOREIGN KEY(user_id) REFERENCES users(user_id)
-                )
-            ''')
+            # Check again after potential rename
+            self.cursor.execute("PRAGMA table_info(users)")
+            columns = [info[1] for info in self.cursor.fetchall()]
 
-            self.cursor.execute('''
-                CREATE TABLE IF NOT EXISTS friends (
-                    friend_id INTEGER PRIMARY KEY,
-                    user_id_1 INTEGER,
-                    user_id_2 INTEGER,
-                    status TEXT DEFAULT 'pending',
-                    requested_date TEXT,
-                    FOREIGN KEY(user_id_1) REFERENCES users(user_id),
-                    FOREIGN KEY(user_id_2) REFERENCES users(user_id)
-                )
-            ''')
-
-            self.cursor.execute('''
-                CREATE TABLE IF NOT EXISTS leaderboard (
-                    leaderboard_id INTEGER PRIMARY KEY,
-                    user_id INTEGER,
-                    game_name TEXT,
-                    score INTEGER,
-                    date_achieved TEXT,
-                    FOREIGN KEY(user_id) REFERENCES users(user_id)
-                )
-            ''')
+            if 'coins' not in columns:
+                self.cursor.execute("ALTER TABLE users ADD COLUMN coins INTEGER DEFAULT 0")
+            if 'streak' not in columns:
+                self.cursor.execute("ALTER TABLE users ADD COLUMN streak INTEGER DEFAULT 0")
+            if 'last_login' not in columns:
+                self.cursor.execute("ALTER TABLE users ADD COLUMN last_login DATE")
+            if 'settings_config' not in columns:
+                self.cursor.execute("ALTER TABLE users ADD COLUMN settings_config TEXT")
+            
+            # If for some reason password_hash still doesn't exist (e.g. fresh partial table), add it
+            if 'password_hash' not in columns:
+                 # This might fail if rows exist without default, but for SQLite add column it's usually fine if NULL allowed or default provided.
+                 # However, password_hash is NOT NULL in create table. 
+                 # Since we can't easily add NOT NULL column to populated table without default, we'll try adding it as nullable first for safety if needed,
+                 # but for now let's assume if it's missing entirely on a 'users' table, we might need to recreate or alter carefully.
+                 # A safe bet for a dev env is to just add it.
+                 try:
+                    self.cursor.execute("ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT ''")
+                 except Exception as ex:
+                     print(f"Error adding password_hash: {ex}")
 
             self.conn.commit()
-            print("✓ Database tables created")
         except Exception as e:
-            print(f"✗ Table creation error: {e}")
-            traceback.print_exc()
+            print(f"⚠️ Migration warning: {e}")
 
-    def register_user(self, username, email, password):
-        try:
+    def get_connection(self):
+        return self.conn
 
-            if not username or not email or not password:
-                return False, "All fields are required"
-
-            username = username.strip()
-            email = email.strip()
-
-            if len(username) < 3:
-                return False, "Username must be at least 3 characters"
-
-            if len(password) < 6:
-                return False, "Password must be at least 6 characters"
-
-
-            if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
-                return False, "Invalid email format"
-
-            hashed = hashlib.sha256(password.encode()).hexdigest()
-            avatar_colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6']
-            selected_color = random.choice(avatar_colors)
-
-            self.cursor.execute(
-                'INSERT INTO users (username, email, password, created_date, avatar_color) VALUES (?, ?, ?, ?, ?)',
-                (username, email, hashed, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), selected_color)
-            )
-            self.conn.commit()
-            print(f"✓ User registered: {username}")
-            return True, "Registration successful! Please login."
-
-        except sqlite3.IntegrityError as e:
-            print(f"✗ Integrity error: {e}")
-            if 'username' in str(e).lower():
-                return False, "Username already exists"
-            elif 'email' in str(e).lower():
-                return False, "Email already registered"
-            else:
-                return False, "User already exists"
-        except Exception as e:
-            print(f"✗ Unexpected error: {e}")
-            traceback.print_exc()
-            return False, f"Registration failed: {str(e)}"
-
-    def login_user(self, username, password):
-        try:
-            if not username or not password:
-                return None
-
-            username = username.strip()
-            hashed = hashlib.sha256(password.encode()).hexdigest()
-
-            self.cursor.execute(
-                'SELECT user_id, avatar_color FROM users WHERE username = ? AND password = ?',
-                (username, hashed)
-            )
-            result = self.cursor.fetchone()
-
-            if result:
-                print(f"✓ User logged in: {username}")
-            else:
-                print(f"✗ Login failed for: {username}")
-
-            return result
-        except Exception as e:
-            print(f"✗ Login error: {e}")
-            traceback.print_exc()
-            return None
-
-    def get_user_id_by_username(self, username):
-        try:
-            self.cursor.execute('SELECT user_id FROM users WHERE username = ?', (username.strip(),))
-            result = self.cursor.fetchone()
-            return result[0] if result else None
-        except Exception as e:
-            print(f"✗ Error getting user ID: {e}")
-            return None
-
-    def save_progress(self, user_id, game_name, score, level):
-        try:
-            self.cursor.execute(
-                'INSERT INTO progress (user_id, game_name, score, level, last_played) VALUES (?, ?, ?, ?, ?)',
-                (user_id, game_name, score, level, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-            )
-            self.conn.commit()
-        except Exception as e:
-            print(f"✗ Error saving progress: {e}")
-
-    def save_leaderboard(self, user_id, game_name, score):
-        try:
-            self.cursor.execute(
-                'INSERT INTO leaderboard (user_id, game_name, score, date_achieved) VALUES (?, ?, ?, ?)',
-                (user_id, game_name, score, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-            )
-            self.conn.commit()
-        except Exception as e:
-            print(f"✗ Error saving leaderboard: {e}")
-
-    def get_leaderboard(self, game_name, limit=10):
-        try:
-            self.cursor.execute(
-                'SELECT u.username, l.score, l.date_achieved FROM leaderboard l JOIN users u ON l.user_id = u.user_id WHERE l.game_name = ? ORDER BY l.score DESC LIMIT ?',
-                (game_name, limit)
-            )
-            return self.cursor.fetchall()
-        except Exception as e:
-            print(f"✗ Error getting leaderboard: {e}")
-            return []
-
-    def get_progress(self, user_id):
-        try:
-            self.cursor.execute(
-                'SELECT game_name, score, level, last_played FROM progress WHERE user_id = ?',
-                (user_id,)
-            )
-            return self.cursor.fetchall()
-        except Exception as e:
-            print(f"✗ Error getting progress: {e}")
-            return []
-
-    def send_friend_request(self, user_id_1, user_id_2):
-        try:
-            self.cursor.execute(
-                'INSERT INTO friends (user_id_1, user_id_2, status, requested_date) VALUES (?, ?, ?, ?)',
-                (user_id_1, user_id_2, 'pending', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-            )
-            self.conn.commit()
-            return True
-        except Exception as e:
-            print(f"✗ Error sending friend request: {e}")
-            return False
-
-    def get_pending_requests(self, user_id):
-        try:
-            self.cursor.execute(
-                'SELECT u.username, u.user_id FROM users u JOIN friends f ON u.user_id = f.user_id_1 WHERE f.user_id_2 = ? AND f.status = "pending"',
-                (user_id,)
-            )
-            return self.cursor.fetchall()
-        except Exception as e:
-            print(f"✗ Error getting pending requests: {e}")
-            return []
-
-    def accept_friend_request(self, user_id_1, user_id_2):
-        try:
-            self.cursor.execute(
-                'UPDATE friends SET status = "accepted" WHERE user_id_1 = ? AND user_id_2 = ?',
-                (user_id_1, user_id_2)
-            )
-            self.conn.commit()
-        except Exception as e:
-            print(f"✗ Error accepting friend request: {e}")
-
-    def reject_friend_request(self, user_id_1, user_id_2):
-        try:
-            self.cursor.execute(
-                'DELETE FROM friends WHERE user_id_1 = ? AND user_id_2 = ?',
-                (user_id_1, user_id_2)
-            )
-            self.conn.commit()
-        except Exception as e:
-            print(f"✗ Error rejecting friend request: {e}")
-
-    def get_friends(self, user_id):
-        try:
-            self.cursor.execute(
-                'SELECT u.username, u.user_id FROM users u JOIN friends f ON u.user_id = f.user_id_2 WHERE f.user_id_1 = ? AND f.status = "accepted"',
-                (user_id,)
-            )
-            return self.cursor.fetchall()
-        except Exception as e:
-            print(f"✗ Error getting friends: {e}")
-            return []
-
-    def get_all_users(self):
-        try:
-            self.cursor.execute('SELECT username, user_id FROM users')
-            return self.cursor.fetchall()
-        except Exception as e:
-            print(f"✗ Error getting all users: {e}")
-            return []
-
-
-#Games
-class TicTacToe:
-    def __init__(self, root, user_id, db, opponent_id=None):
-        self.user_id = user_id
-        self.opponent_id = opponent_id
+# --- AUTHENTICATION SYSTEM ---
+class AuthSystem:
+    def __init__(self, db: DatabaseManager):
         self.db = db
-        self.window = tk.Toplevel(root)
-        self.window.title("Tic Tac Toe")
-        self.window.configure(bg="#1a1a1a")
-        self.board = [''] * 9
-        self.current_player = 'X'
+        self.current_user = None
+
+    def register(self, username, email, password):
+        if not all([username, email, password]):
+            return False, "All fields are required."
+        
+        if len(password) < 6:
+            return False, "Password must be at least 6 characters."
+        
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return False, "Invalid email format."
+
+        try:
+            if HAS_BCRYPT:
+                salt = bcrypt.gensalt()
+                hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+            else:
+                hashed = hashlib.sha256(password.encode()).hexdigest().encode()
+
+            cursor = self.db.get_connection().cursor()
+            cursor.execute(
+                "INSERT INTO users (username, email, password_hash, coins, settings_config) VALUES (?, ?, ?, ?, ?)",
+                (username, email, hashed, 100, json.dumps({'theme': 'dark', 'sound': True}))
+            )
+            self.db.get_connection().commit()
+            return True, "Registration successful!"
+        except sqlite3.IntegrityError:
+            return False, "Username or Email already exists."
+        except Exception as e:
+            traceback.print_exc() # Print full error to console for debugging
+            return False, f"Error: {str(e)}"
+
+    def login(self, username, password):
+        cursor = self.db.get_connection().cursor()
+        
+        # We need to handle cases where the DB might have 'password' instead of 'password_hash' if migration failed silently
+        # But our migration script handles rename.
+        try:
+            cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+        except sqlite3.OperationalError:
+             return False, "Database Schema Error. Please restart the app to run migrations."
+
+        if user:
+            # Handle potential schema mismatch if migration added column but data is in old column (unlikely with rename)
+            # or if we are reading from a row that has the old 'password' key in the row factory if not refreshed
+            
+            # Check if password_hash exists in the row keys
+            if 'password_hash' in user.keys():
+                stored_hash = user['password_hash']
+            elif 'password' in user.keys():
+                stored_hash = user['password']
+            else:
+                return False, "Critical: Password column missing."
+
+            if isinstance(stored_hash, str):
+                stored_hash = stored_hash.encode('utf-8')
+            
+            valid = False
+            if HAS_BCRYPT:
+                try:
+                    # If stored hash is not a valid bcrypt hash (e.g. old SHA256), this raises error
+                    valid = bcrypt.checkpw(password.encode('utf-8'), stored_hash)
+                except ValueError:
+                    # Fallback for old SHA256 passwords during migration
+                     valid = hashlib.sha256(password.encode()).hexdigest().encode() == stored_hash
+            else:
+                valid = hashlib.sha256(password.encode()).hexdigest().encode() == stored_hash
+
+            if valid:
+                self.current_user = dict(user)
+                self._process_login_rewards()
+                return True, "Login successful!"
+        
+        return False, "Invalid credentials."
+
+    def _process_login_rewards(self):
+        """Handle daily streaks and rewards."""
+        user_id = self.current_user['user_id']
+        today = datetime.now().date()
+        last_login_str = self.current_user['last_login']
+        
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+
+        new_streak = 1
+        reward = 0
+        message = ""
+
+        if last_login_str:
+            last_login = datetime.strptime(last_login_str, "%Y-%m-%d").date()
+            diff = (today - last_login).days
+            
+            if diff == 0:
+                # Already logged in today
+                return
+            elif diff == 1:
+                # Consecutive day
+                new_streak = self.current_user['streak'] + 1
+                reward = min(10 + (new_streak * 5), 100)
+                message = f"🔥 Streak maintained! {new_streak} days. +{reward} coins!"
+            else:
+                # Streak broken
+                new_streak = 1
+                reward = 10
+                message = f"Streak reset. +{reward} coins."
+        else:
+            reward = 50
+            message = "Welcome! +50 coins bonus."
+
+        # Update DB
+        cursor.execute(
+            "UPDATE users SET last_login = ?, streak = ?, coins = coins + ? WHERE user_id = ?",
+            (today.strftime("%Y-%m-%d"), new_streak, reward, user_id)
+        )
+        conn.commit()
+        
+        # Update local session
+        self.current_user['streak'] = new_streak
+        self.current_user['coins'] += reward
+        self.daily_reward_msg = message
+
+    def update_settings(self, key, value):
+        if not self.current_user: return
+        settings = json.loads(self.current_user['settings_config'] or '{}')
+        settings[key] = value
+        
+        conn = self.db.get_connection()
+        conn.execute("UPDATE users SET settings_config = ? WHERE user_id = ?", 
+                     (json.dumps(settings), self.current_user['user_id']))
+        conn.commit()
+        self.current_user['settings_config'] = json.dumps(settings)
+
+# --- GAME LOGIC ---
+class GameEngine:
+    """Base class for all games to ensure scalability."""
+    def __init__(self, root, user_id, db, on_close):
+        self.root = tk.Toplevel(root)
+        self.user_id = user_id
+        self.db = db
+        self.on_close = on_close
         self.score = 0
+        self.game_name = "Unknown"
+        self.root.protocol("WM_DELETE_WINDOW", self.close_game)
+        
+        # Determine theme
+        cursor = db.get_connection().cursor()
+        cursor.execute("SELECT settings_config FROM users WHERE user_id = ?", (user_id,))
+        res = cursor.fetchone()
+        settings = json.loads(res['settings_config']) if res and res['settings_config'] else {}
+        self.is_dark = settings.get('theme', 'dark') == 'dark'
+        self.colors = THEME_COLORS['dark'] if self.is_dark else THEME_COLORS['light']
+        
+        self.root.configure(bg=self.colors['bg'])
+
+    def save_score(self):
+        conn = self.db.get_connection()
+        conn.execute("INSERT INTO scores (user_id, game_name, score) VALUES (?, ?, ?)",
+                     (self.user_id, self.game_name, self.score))
+        conn.execute("UPDATE users SET coins = coins + ? WHERE user_id = ?", 
+                     (int(self.score / 10), self.user_id)) # 1 coin per 10 points
+        conn.commit()
+        messagebox.showinfo("Game Over", f"Score saved: {self.score}\nCoins earned: {int(self.score/10)}")
+
+    def close_game(self):
+        self.root.destroy()
+        if self.on_close:
+            self.on_close()
+
+# Specific Games
+class SnakeGame(GameEngine):
+    def __init__(self, root, user_id, db, on_close):
+        super().__init__(root, user_id, db, on_close)
+        self.game_name = "Snake"
+        self.root.title("🐍 Snake Arcade")
+        self.width = 600
+        self.height = 400
+        self.cell_size = 20
+        
+        self.canvas = tk.Canvas(self.root, width=self.width, height=self.height, bg=self.colors['bg'], highlightthickness=0)
+        self.canvas.pack(padx=10, pady=10)
+        
+        self.snake = [(100, 100), (80, 100), (60, 100)]
+        self.direction = "Right"
+        self.food = self.spawn_food()
+        self.running = True
+        
+        self.root.bind("<Key>", self.change_direction)
+        self.game_loop()
+
+    def spawn_food(self):
+        x = random.randint(0, (self.width - self.cell_size) // self.cell_size) * self.cell_size
+        y = random.randint(0, (self.height - self.cell_size) // self.cell_size) * self.cell_size
+        return (x, y)
+
+    def change_direction(self, event):
+        new_dir = event.keysym
+        all_dirs = {"Left", "Right", "Up", "Down"}
+        opposites = ({"Left", "Right"}, {"Up", "Down"})
+        
+        if new_dir in all_dirs:
+            if {new_dir, self.direction} not in opposites:
+                self.direction = new_dir
+
+    def game_loop(self):
+        if not self.running: return
+
+        head_x, head_y = self.snake[0]
+        if self.direction == "Left": head_x -= self.cell_size
+        elif self.direction == "Right": head_x += self.cell_size
+        elif self.direction == "Up": head_y -= self.cell_size
+        elif self.direction == "Down": head_y += self.cell_size
+
+        new_head = (head_x, head_y)
+
+        # Collision Check
+        if (head_x < 0 or head_x >= self.width or head_y < 0 or head_y >= self.height or new_head in self.snake):
+            self.running = False
+            self.save_score()
+            return
+
+        self.snake.insert(0, new_head)
+
+        if new_head == self.food:
+            self.score += 10
+            self.food = self.spawn_food()
+        else:
+            self.snake.pop()
+
+        self.draw()
+        self.root.after(100, self.game_loop)
+
+    def draw(self):
+        self.canvas.delete("all")
+        self.canvas.create_rectangle(self.food[0], self.food[1], self.food[0]+self.cell_size, self.food[1]+self.cell_size, fill=self.colors['danger'])
+        
+        for x, y in self.snake:
+            self.canvas.create_rectangle(x, y, x+self.cell_size, y+self.cell_size, fill=self.colors['success'])
+            
+        self.canvas.create_text(50, 20, text=f"Score: {self.score}", fill=self.colors['text'], font=("Arial", 14))
+
+class TicTacToe(GameEngine):
+    def __init__(self, root, user_id, db, on_close):
+        super().__init__(root, user_id, db, on_close)
+        self.game_name = "Tic Tac Toe"
+        self.root.title("Tic Tac Toe")
+        self.turn = 'X'
+        self.board = [""] * 9
         self.buttons = []
-        self.x_wins = 0
-        self.o_wins = 0
-
-        self.create_board()
-
-    def create_board(self):
-        title = tk.Label(self.window, text="Tic Tac Toe", font=("Arial", 20, "bold"),
-                         bg="#1a1a1a", fg="#3498db")
-        title.pack(pady=15)
-
-        frame = tk.Frame(self.window, bg="#1a1a1a")
-        frame.pack(padx=10, pady=10)
-
+        
+        frame = tk.Frame(self.root, bg=self.colors['bg'])
+        frame.pack(padx=20, pady=20)
+        
         for i in range(9):
-            btn = tk.Button(frame, text='', width=8, height=4,
-                            command=lambda idx=i: self.on_click(idx),
-                            bg="#34495e", fg="white", font=("Arial", 18, "bold"),
-                            activebackground="#2c3e50")
-            btn.grid(row=i // 3, column=i % 3, padx=3, pady=3)
+            btn = tk.Button(frame, text="", font=("Arial", 24), width=5, height=2,
+                            bg=self.colors['secondary'], fg=self.colors['text'],
+                            command=lambda i=i: self.click(i))
+            btn.grid(row=i//3, column=i%3, padx=5, pady=5)
             self.buttons.append(btn)
 
-    def on_click(self, idx):
-        if self.board[idx] == '':
-            self.board[idx] = self.current_player
-            color = "#e74c3c" if self.current_player == 'X' else "#3498db"
-            self.buttons[idx].config(text=self.current_player, fg=color)
+    def click(self, index):
+        if self.board[index] == "" and self.turn == 'X':
+            self.board[index] = 'X'
+            self.buttons[index].config(text='X', fg=self.colors['accent'])
+            if not self.check_win():
+                self.root.after(500, self.computer_move)
 
-            if self.check_winner():
-                winner = self.current_player
-                messagebox.showinfo("Game Over", f"Player {winner} wins!")
-                self.score += 10
-                self.db.save_progress(self.user_id, 'Tic Tac Toe', self.score, 1)
-                self.db.save_leaderboard(self.user_id, 'Tic Tac Toe', self.score)
-                self.reset_board()
-            elif '' not in self.board:
-                messagebox.showinfo("Game Over", "It's a draw!")
-                self.reset_board()
-            else:
-                self.current_player = 'O' if self.current_player == 'X' else 'X'
+    def computer_move(self):
+        available = [i for i, x in enumerate(self.board) if x == ""]
+        if available:
+            move = random.choice(available)
+            self.board[move] = 'O'
+            self.buttons[move].config(text='O', fg=self.colors['danger'])
+            self.check_win()
 
-    def check_winner(self):
-        winning_combos = [
-            [0, 1, 2], [3, 4, 5], [6, 7, 8],
-            [0, 3, 6], [1, 4, 7], [2, 5, 8],
-            [0, 4, 8], [2, 4, 6]
-        ]
-        for combo in winning_combos:
-            if self.board[combo[0]] == self.board[combo[1]] == self.board[combo[2]] != '':
+    def check_win(self):
+        wins = [(0,1,2), (3,4,5), (6,7,8), (0,3,6), (1,4,7), (2,5,8), (0,4,8), (2,4,6)]
+        for a, b, c in wins:
+            if self.board[a] == self.board[b] == self.board[c] and self.board[a] != "":
+                winner = self.board[a]
+                if winner == 'X':
+                    self.score = 50
+                    messagebox.showinfo("Result", "You Won!")
+                else:
+                    messagebox.showinfo("Result", "Computer Won!")
+                self.save_score()
+                self.close_game()
                 return True
+        if "" not in self.board:
+            messagebox.showinfo("Result", "Draw!")
+            self.close_game()
+            return True
         return False
 
-    def reset_board(self):
-        self.board = [''] * 9
-        self.current_player = 'X'
-        for btn in self.buttons:
-            btn.config(text='', fg="white")
+# --- UI COMPONENTS ---
+class ModernButton(tk.Button):
+    def __init__(self, master, **kw):
+        bg_color = kw.pop('bg', '#3498db')
+        fg_color = kw.pop('fg', 'white')
+        super().__init__(master, **kw)
+        self.config(bg=bg_color, fg=fg_color, font=("Segoe UI", 11, "bold"), 
+                   relief="flat", activebackground=bg_color, activeforeground=fg_color,
+                   padx=20, pady=10, cursor="hand2")
+        self.bind("<Enter>", lambda e: self.config(bg=self.adjust_color(bg_color, -20)))
+        self.bind("<Leave>", lambda e: self.config(bg=bg_color))
 
+    def adjust_color(self, color, amount):
+        # Simple placeholder for color darkening
+        return color 
 
-class Game2048:
-    def __init__(self, root, user_id, db):
-        self.user_id = user_id
-        self.db = db
-        self.window = tk.Toplevel(root)
-        self.window.title("2048")
-        self.window.configure(bg="#bbada0")
-        self.grid = [[0] * 4 for _ in range(4)]
-        self.score = 0
-        self.game_over = False
-        self.tiles = []
-
-        self.add_new_tile()
-        self.add_new_tile()
-        self.create_board()
-        self.window.bind('<Key>', self.on_key_press)
-
-    def create_board(self):
-        title = tk.Label(self.window, text="2048 Game", font=("Arial", 20, "bold"),
-                         bg="#bbada0", fg="#776e65")
-        title.pack(pady=10)
-
-        self.frame = tk.Frame(self.window, bg="#bbada0")
-        self.frame.pack(padx=10, pady=10)
-
-        for i in range(4):
-            row = []
-            for j in range(4):
-                tile = tk.Label(self.frame, text='', width=8, height=4,
-                                font=("Arial", 24, "bold"), bg="#cdc1b4", fg="#776e65")
-                tile.grid(row=i, column=j, padx=2, pady=2)
-                row.append(tile)
-            self.tiles.append(row)
-
-        score_label = tk.Label(self.window, text=f"Score: {self.score}", font=("Arial", 14),
-                               bg="#2c3e50", fg="white")
-        score_label.pack(pady=10)
-        self.score_label = score_label
-        self.update_display()
-
-    def add_new_tile(self):
-        empty = [(i, j) for i in range(4) for j in range(4) if self.grid[i][j] == 0]
-        if empty:
-            i, j = random.choice(empty)
-            self.grid[i][j] = 2 if random.random() < 0.9 else 4
-
-    def update_display(self):
-        colors = {
-            0: "#cdc1b4", 2: "#eee4da", 4: "#ede0c8", 8: "#f2b179",
-            16: "#f59563", 32: "#f67c5f", 64: "#f65e3b", 128: "#edcf72",
-            256: "#edcc61", 512: "#edc850", 1024: "#edc53f", 2048: "#edc22e"
-        }
-        for i in range(4):
-            for j in range(4):
-                val = self.grid[i][j]
-                self.tiles[i][j].config(
-                    text=str(val) if val != 0 else '',
-                    bg=colors.get(val, "#3c3c2f")
-                )
-        self.score_label.config(text=f"Score: {self.score}")
-
-    def move_left(self):
-        moved = False
-        for i in range(4):
-            row = [self.grid[i][j] for j in range(4) if self.grid[i][j] != 0]
-            for k in range(len(row) - 1):
-                if row[k] == row[k + 1]:
-                    row[k] *= 2
-                    self.score += row[k]
-                    row.pop(k + 1)
-                    moved = True
-            while len(row) < 4:
-                row.append(0)
-            for j in range(4):
-                self.grid[i][j] = row[j]
-        return moved
-
-    def move_right(self):
-        for i in range(4):
-            self.grid[i].reverse()
-        self.move_left()
-        for i in range(4):
-            self.grid[i].reverse()
-
-    def move_up(self):
-        for j in range(4):
-            col = [self.grid[i][j] for i in range(4) if self.grid[i][j] != 0]
-            for k in range(len(col) - 1):
-                if col[k] == col[k + 1]:
-                    col[k] *= 2
-                    self.score += col[k]
-                    col.pop(k + 1)
-            while len(col) < 4:
-                col.append(0)
-            for i in range(4):
-                self.grid[i][j] = col[i]
-
-    def move_down(self):
-        for j in range(4):
-            col = [self.grid[i][j] for i in range(4) if self.grid[i][j] != 0]
-            col.reverse()
-            for k in range(len(col) - 1):
-                if col[k] == col[k + 1]:
-                    col[k] *= 2
-                    self.score += col[k]
-                    col.pop(k + 1)
-            while len(col) < 4:
-                col.append(0)
-            col.reverse()
-            for i in range(4):
-                self.grid[i][j] = col[i]
-
-    def on_key_press(self, event):
-        if event.keysym == 'Left':
-            self.move_left()
-        elif event.keysym == 'Right':
-            self.move_right()
-        elif event.keysym == 'Up':
-            self.move_up()
-        elif event.keysym == 'Down':
-            self.move_down()
-        else:
-            return
-
-        self.add_new_tile()
-        self.update_display()
-
-        if self.is_game_over():
-            messagebox.showinfo("Game Over", f"Final Score: {self.score}")
-            self.db.save_progress(self.user_id, '2048', self.score, 1)
-            self.db.save_leaderboard(self.user_id, '2048', self.score)
-            self.window.destroy()
-
-    def is_game_over(self):
-        for i in range(4):
-            for j in range(4):
-                if self.grid[i][j] == 0:
-                    return False
-                if j < 3 and self.grid[i][j] == self.grid[i][j + 1]:
-                    return False
-                if i < 3 and self.grid[i][j] == self.grid[i + 1][j]:
-                    return False
-        return True
-
-
-class Hangman:
-    def __init__(self, root, user_id, db):
-        self.user_id = user_id
-        self.db = db
-        self.window = tk.Toplevel(root)
-        self.window.title("Hangman")
-        self.window.configure(bg="#2c3e50")
-
-        self.words = ['python', 'hangman', 'gaming', 'computer', 'puzzle', 'algorithm', 'database', 'programming']
-        self.word = random.choice(self.words)
-        self.guessed = set()
-        self.wrong_guesses = 0
-        self.score = 0
-        self.max_wrong = 6
-
-        self.create_ui()
-
-    def create_ui(self):
-        title = tk.Label(self.window, text="🎪 Hangman", font=("Arial", 20, "bold"),
-                         bg="#2c3e50", fg="white")
-        title.pack(pady=10)
-
-        self.word_label = tk.Label(self.window, text=self.get_display_word(),
-                                   font=("Arial", 18), bg="#2c3e50", fg="#3498db")
-        self.word_label.pack(pady=10)
-
-        self.status_label = tk.Label(self.window, text=f"Wrong Guesses: {self.wrong_guesses}/{self.max_wrong}",
-                                     font=("Arial", 12), bg="#2c3e50", fg="#e74c3c")
-        self.status_label.pack(pady=5)
-
-        frame = tk.Frame(self.window, bg="#2c3e50")
-        frame.pack(pady=10)
-
-        self.letter_entry = tk.Entry(frame, font=("Arial", 12), width=5)
-        self.letter_entry.pack(side="left", padx=5)
-
-        guess_btn = tk.Button(frame, text="Guess", command=self.guess_letter,
-                              bg="#27ae60", fg="white", font=("Arial", 12))
-        guess_btn.pack(side="left", padx=5)
-
-        self.guessed_label = tk.Label(self.window, text="Guessed Letters: ",
-                                      font=("Arial", 10), bg="#2c3e50", fg="white")
-        self.guessed_label.pack(pady=10)
-
-    def get_display_word(self):
-        return ' '.join([letter if letter in self.guessed else '_' for letter in self.word])
-
-    def guess_letter(self):
-        letter = self.letter_entry.get().lower()
-        self.letter_entry.delete(0, tk.END)
-
-        if not letter or len(letter) != 1:
-            messagebox.showerror("Error", "Enter a single letter!")
-            return
-
-        if letter in self.guessed:
-            messagebox.showwarning("Warning", "Already guessed!")
-            return
-
-        self.guessed.add(letter)
-
-        if letter not in self.word:
-            self.wrong_guesses += 1
-
-        self.word_label.config(text=self.get_display_word())
-        self.status_label.config(text=f"Wrong Guesses: {self.wrong_guesses}/{self.max_wrong}")
-        self.guessed_label.config(text=f"Guessed Letters: {', '.join(sorted(self.guessed))}")
-
-        if all(letter in self.guessed for letter in self.word):
-            self.score = (self.max_wrong - self.wrong_guesses) * 10
-            messagebox.showinfo("Win!", f"You won! Score: {self.score}")
-            self.db.save_progress(self.user_id, 'Hangman', self.score, 1)
-            self.db.save_leaderboard(self.user_id, 'Hangman', self.score)
-            self.window.destroy()
-        elif self.wrong_guesses >= self.max_wrong:
-            messagebox.showinfo("Game Over", f"You lost! Word was: {self.word}")
-            self.window.destroy()
-
-
-class Trivia:
-    def __init__(self, root, user_id, db):
-        self.user_id = user_id
-        self.db = db
-        self.window = tk.Toplevel(root)
-        self.window.title("Trivia Quiz")
-        self.window.configure(bg="#2c3e50")
-
-        self.questions = [
-            {"q": "What is the capital of France?", "a": "Paris", "opts": ["Paris", "London", "Berlin", "Madrid"]},
-            {"q": "What is 2 + 2?", "a": "4", "opts": ["3", "4", "5", "6"]},
-            {"q": "Which planet is closest to the Sun?", "a": "Mercury", "opts": ["Venus", "Mercury", "Earth", "Mars"]},
-            {"q": "What is the largest ocean?", "a": "Pacific Ocean",
-             "opts": ["Atlantic", "Pacific Ocean", "Indian", "Arctic"]},
-            {"q": "What year was Python created?", "a": "1991", "opts": ["1989", "1991", "1993", "1995"]},
-        ]
-
-        self.current_q = 0
-        self.score = 0
-
-        self.create_ui()
-
-    def create_ui(self):
-        title = tk.Label(self.window, text="❓ Trivia Quiz", font=("Arial", 20, "bold"),
-                         bg="#2c3e50", fg="white")
-        title.pack(pady=10)
-
-        self.question_label = tk.Label(self.window, text="", font=("Arial", 14),
-                                       bg="#2c3e50", fg="#3498db", wraplength=400)
-        self.question_label.pack(pady=20)
-
-        self.var = tk.StringVar()
-        self.radio_buttons = []
-
-        for i in range(4):
-            rb = tk.Radiobutton(self.window, text="", variable=self.var, value="",
-                                font=("Arial", 12), bg="#2c3e50", fg="white",
-                                selectcolor="#34495e")
-            rb.pack(anchor="w", padx=50)
-            self.radio_buttons.append(rb)
-
-        btn_frame = tk.Frame(self.window, bg="#2c3e50")
-        btn_frame.pack(pady=20)
-
-        tk.Button(btn_frame, text="Next", command=self.next_question,
-                  bg="#27ae60", fg="white", font=("Arial", 12)).pack(side="left", padx=10)
-
-        self.score_label = tk.Label(self.window, text=f"Score: {self.score}/5",
-                                    font=("Arial", 12), bg="#2c3e50", fg="#f39c12")
-        self.score_label.pack()
-
-        self.load_question()
-
-    def load_question(self):
-        if self.current_q < len(self.questions):
-            q = self.questions[self.current_q]
-            self.question_label.config(text=f"Q{self.current_q + 1}: {q['q']}")
-            self.var.set("")
-
-            random.shuffle(q['opts'])
-            for i, rb in enumerate(self.radio_buttons):
-                rb.config(text=q['opts'][i], value=q['opts'][i])
-        else:
-            self.end_quiz()
-
-    def next_question(self):
-        q = self.questions[self.current_q]
-        if self.var.get() == q['a']:
-            self.score += 1
-
-        self.current_q += 1
-        self.score_label.config(text=f"Score: {self.score}/{len(self.questions)}")
-        self.load_question()
-
-    def end_quiz(self):
-        final_score = self.score * 20
-        messagebox.showinfo("Quiz Over", f"Quiz Complete!\nFinal Score: {self.score}/5")
-        self.db.save_progress(self.user_id, 'Trivia', final_score, 1)
-        self.db.save_leaderboard(self.user_id, 'Trivia', final_score)
-        self.window.destroy()
-
-
-#Main App
-class GamingApp:
+class ArcadiaHubApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("🎮 Gaming Platform")
-        self.root.geometry("800x700")
-        self.root.configure(bg="#1a1a1a")
-        self.db = Database()
-        self.current_user_id = None
-        self.current_username = None
-        self.avatar_color = None
+        self.root.title("Arcadia Hub | Professional Gaming Platform")
+        self.root.geometry("1000x700")
+        
+        self.db_manager = DatabaseManager()
+        self.auth = AuthSystem(self.db_manager)
+        
+        self.current_theme = "dark"
+        self.colors = THEME_COLORS[self.current_theme]
+        
+        self.root.configure(bg=self.colors['bg'])
+        self.main_container = tk.Frame(self.root, bg=self.colors['bg'])
+        self.main_container.pack(fill="both", expand=True)
+        
+        self.show_login()
 
-        self.setup_styles()
-        self.show_login_screen()
-
-    def setup_styles(self):
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure('TLabel', background="#2c3e50", foreground="white")
-        style.configure('TButton', font=("Arial", 10))
-
-    def clear_window(self):
-        for widget in self.root.winfo_children():
+    def apply_theme(self):
+        self.colors = THEME_COLORS[self.current_theme]
+        self.root.configure(bg=self.colors['bg'])
+        # Recursively update widgets would go here in a full framework
+        
+    def clear_screen(self):
+        for widget in self.main_container.winfo_children():
             widget.destroy()
 
-    def show_login_screen(self):
-        self.clear_window()
-        self.root.configure(bg="#1a1a1a")
+    def show_login(self):
+        self.clear_screen()
+        frame = tk.Frame(self.main_container, bg=self.colors['secondary'], padx=40, pady=40)
+        frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        main_frame = tk.Frame(self.root, bg="#1a1a1a")
-        main_frame.pack(expand=True, fill="both")
+        tk.Label(frame, text="ARCADIA HUB", font=("Arial", 28, "bold"), 
+                 bg=self.colors['secondary'], fg=self.colors['accent']).pack(pady=10)
+        
+        tk.Label(frame, text="Username", bg=self.colors['secondary'], fg=self.colors['text']).pack(anchor="w")
+        user_entry = tk.Entry(frame, width=30, font=("Arial", 12))
+        user_entry.pack(pady=5)
 
-        header = tk.Frame(main_frame, bg="#0f3460", height=100)
-        header.pack(fill="x")
+        tk.Label(frame, text="Password", bg=self.colors['secondary'], fg=self.colors['text']).pack(anchor="w")
+        pass_entry = tk.Entry(frame, width=30, show="•", font=("Arial", 12))
+        pass_entry.pack(pady=5)
 
-        title = tk.Label(header, text="🎮 GAMING PLATFORM", font=("Arial", 28, "bold"),
-                         bg="#0f3460", fg="#00d4ff")
-        title.pack(pady=20)
-
-        subtitle = tk.Label(header, text="Play. Compete. Connect.", font=("Arial", 12),
-                            bg="#0f3460", fg="#3498db")
-        subtitle.pack()
-
-        content = tk.Frame(main_frame, bg="#1a1a1a")
-        content.pack(expand=True, padx=20, pady=30)
-
-        notebook = ttk.Notebook(content)
-        notebook.pack(fill="both", expand=True)
-
-        # Login Tab
-        login_frame = tk.Frame(notebook, bg="#2c3e50")
-        notebook.add(login_frame, text="Login")
-
-        tk.Label(login_frame, text="Username:", font=("Arial", 11, "bold"),
-                 bg="#2c3e50", fg="white").pack(pady=8)
-        login_username = tk.Entry(login_frame, font=("Arial", 11), width=35, bg="#34495e", fg="white")
-        login_username.pack(pady=5, ipady=8)
-
-        tk.Label(login_frame, text="Password:", font=("Arial", 11, "bold"),
-                 bg="#2c3e50", fg="white").pack(pady=8)
-        login_password = tk.Entry(login_frame, font=("Arial", 11), width=35, show="•", bg="#34495e", fg="white")
-        login_password.pack(pady=5, ipady=8)
-
-        def login():
-            username = login_username.get().strip()
-            password = login_password.get()
-
-            if not username or not password:
-                messagebox.showerror("Error", "Please fill all fields!")
-                return
-
-            result = self.db.login_user(username, password)
-            if result:
-                self.current_user_id = result[0]
-                self.avatar_color = result[1]
-                self.current_username = username
-                messagebox.showinfo("Success", f"Welcome {username}!")
-                self.show_main_menu()
-            else:
-                messagebox.showerror("Error", "Invalid username or password!")
-
-        login_btn = tk.Button(login_frame, text="LOGIN", command=login,
-                              bg="#00d4ff", fg="#0f3460", font=("Arial", 12, "bold"),
-                              padx=30, pady=10)
-        login_btn.pack(pady=20)
-
-        #RegisterTab
-        register_frame = tk.Frame(notebook, bg="#2c3e50")
-        notebook.add(register_frame, text="Register")
-
-        tk.Label(register_frame, text="Username:", font=("Arial", 11, "bold"),
-                 bg="#2c3e50", fg="white").pack(pady=8)
-        reg_username = tk.Entry(register_frame, font=("Arial", 11), width=35, bg="#34495e", fg="white")
-        reg_username.pack(pady=5, ipady=8)
-
-        tk.Label(register_frame, text="Email:", font=("Arial", 11, "bold"),
-                 bg="#2c3e50", fg="white").pack(pady=8)
-        reg_email = tk.Entry(register_frame, font=("Arial", 11), width=35, bg="#34495e", fg="white")
-        reg_email.pack(pady=5, ipady=8)
-
-        tk.Label(register_frame, text="Password (min 6 chars):", font=("Arial", 11, "bold"),
-                 bg="#2c3e50", fg="white").pack(pady=8)
-        reg_password = tk.Entry(register_frame, font=("Arial", 11), width=35, show="•", bg="#34495e", fg="white")
-        reg_password.pack(pady=5, ipady=8)
-
-        tk.Label(register_frame, text="Confirm Password:", font=("Arial", 11, "bold"),
-                 bg="#2c3e50", fg="white").pack(pady=8)
-        reg_confirm = tk.Entry(register_frame, font=("Arial", 11), width=35, show="•", bg="#34495e", fg="white")
-        reg_confirm.pack(pady=5, ipady=8)
-
-        def register():
-            username = reg_username.get().strip()
-            email = reg_email.get().strip()
-            password = reg_password.get()
-            confirm = reg_confirm.get()
-
-            if not username or not email or not password or not confirm:
-                messagebox.showerror("Error", "Please fill all fields!")
-                return
-
-            if password != confirm:
-                messagebox.showerror("Error", "Passwords don't match!")
-                return
-
-            success, message = self.db.register_user(username, email, password)
+        def attempt_login():
+            success, msg = self.auth.login(user_entry.get(), pass_entry.get())
             if success:
-                messagebox.showinfo("Success", message)
-                reg_username.delete(0, tk.END)
-                reg_email.delete(0, tk.END)
-                reg_password.delete(0, tk.END)
-                reg_confirm.delete(0, tk.END)
+                if hasattr(self.auth, 'daily_reward_msg'):
+                    messagebox.showinfo("Daily Reward", self.auth.daily_reward_msg)
+                
+                # Load user theme preference
+                settings = json.loads(self.auth.current_user['settings_config'] or '{}')
+                self.current_theme = settings.get('theme', 'dark')
+                self.apply_theme()
+                self.show_dashboard()
             else:
-                messagebox.showerror("Error", message)
+                messagebox.showerror("Login Failed", msg)
 
-        register_btn = tk.Button(register_frame, text="REGISTER", command=register,
-                                 bg="#00d4ff", fg="#0f3460", font=("Arial", 12, "bold"),
-                                 padx=30, pady=10)
-        register_btn.pack(pady=20)
+        ModernButton(frame, text="LOGIN", command=attempt_login, bg=self.colors['accent']).pack(pady=20, fill='x')
+        tk.Button(frame, text="Create Account", command=self.show_register, 
+                  bg=self.colors['secondary'], fg=self.colors['text'], relief="flat").pack()
 
-        footer = tk.Label(main_frame, text="© 2026 Gaming Platform | Made with ❤️",
-                          font=("Arial", 9), bg="#1a1a1a", fg="#7f8c8d")
-        footer.pack(side="bottom", pady=10)
+    def show_register(self):
+        self.clear_screen()
+        frame = tk.Frame(self.main_container, bg=self.colors['secondary'], padx=40, pady=40)
+        frame.place(relx=0.5, rely=0.5, anchor="center")
 
-    def show_main_menu(self):
-        self.clear_window()
-        self.root.configure(bg="#1a1a1a")
+        tk.Label(frame, text="CREATE ACCOUNT", font=("Arial", 24, "bold"), 
+                 bg=self.colors['secondary'], fg=self.colors['success']).pack(pady=10)
 
-        header = tk.Frame(self.root, bg=self.avatar_color, height=80)
-        header.pack(fill="x")
+        entries = {}
+        for field in ["Username", "Email", "Password"]:
+            tk.Label(frame, text=field, bg=self.colors['secondary'], fg=self.colors['text']).pack(anchor="w")
+            e = tk.Entry(frame, width=30, font=("Arial", 12), show="•" if field == "Password" else "")
+            e.pack(pady=5)
+            entries[field] = e
 
-        welcome_text = tk.Label(header, text=f"🎮 {self.current_username.upper()}",
-                                font=("Arial", 22, "bold"), bg=self.avatar_color, fg="white")
-        welcome_text.pack(pady=20)
-
-        content = tk.Frame(self.root, bg="#1a1a1a")
-        content.pack(expand=True, fill="both", padx=20, pady=20)
-
-        games_label = tk.Label(content, text="🎮 AVAILABLE GAMES", font=("Arial", 14, "bold"),
-                               bg="#1a1a1a", fg="#00d4ff")
-        games_label.pack(anchor="w", pady=(0, 10))
-
-        games_frame = tk.Frame(content, bg="#1a1a1a")
-        games_frame.pack(fill="x", pady=10)
-
-        self.create_game_button(games_frame, "🎯 Tic Tac Toe", self.play_tictactoe, "#e74c3c")
-        self.create_game_button(games_frame, "2️⃣ 2048", self.play_2048, "#f39c12")
-        self.create_game_button(games_frame, "🎪 Hangman", self.play_hangman, "#9b59b6")
-        self.create_game_button(games_frame, "❓ Trivia", self.play_trivia, "#1abc9c")
-
-        features_label = tk.Label(content, text="⭐ FEATURES", font=("Arial", 14, "bold"),
-                                  bg="#1a1a1a", fg="#00d4ff")
-        features_label.pack(anchor="w", pady=(20, 10))
-
-        features_frame = tk.Frame(content, bg="#1a1a1a")
-        features_frame.pack(fill="x", pady=10)
-
-        self.create_feature_button(features_frame, "📊 Progress", self.show_progress, "#3498db")
-        self.create_feature_button(features_frame, "🏆 Leaderboard", self.show_leaderboard, "#f1c40f")
-        self.create_feature_button(features_frame, "👥 Friends", self.show_friends, "#2ecc71")
-        self.create_feature_button(features_frame, "🚪 Logout", self.show_login_screen, "#95a5a6")
-
-    def create_game_button(self, parent, text, command, color):
-        btn = tk.Button(parent, text=text, command=command,
-                        bg=color, fg="white", font=("Arial", 11, "bold"),
-                        padx=20, pady=12, relief="flat")
-        btn.pack(fill="x", pady=8)
-
-    def create_feature_button(self, parent, text, command, color):
-        btn = tk.Button(parent, text=text, command=command,
-                        bg=color, fg="white" if color != "#f1c40f" else "#000",
-                        font=("Arial", 11, "bold"),
-                        padx=20, pady=12, relief="flat")
-        btn.pack(fill="x", pady=6)
-
-    def play_tictactoe(self):
-        TicTacToe(self.root, self.current_user_id, self.db)
-
-    def play_2048(self):
-        Game2048(self.root, self.current_user_id, self.db)
-
-    def play_hangman(self):
-        Hangman(self.root, self.current_user_id, self.db)
-
-    def play_trivia(self):
-        Trivia(self.root, self.current_user_id, self.db)
-
-    def show_progress(self):
-        self.clear_window()
-        self.root.configure(bg="#2c3e50")
-
-        header = tk.Label(self.root, text="📊 YOUR PROGRESS", font=("Arial", 18, "bold"),
-                          bg="#0f3460", fg="#00d4ff")
-        header.pack(fill="x", pady=15)
-
-        frame = tk.Frame(self.root, bg="#2c3e50")
-        frame.pack(expand=True, fill="both", padx=20, pady=20)
-
-        progress = self.db.get_progress(self.current_user_id)
-
-        if progress:
-            for game, score, level, last_played in progress:
-                game_frame = tk.Frame(frame, bg="#34495e")
-                game_frame.pack(fill="x", pady=8, padx=5)
-
-                details = tk.Label(game_frame,
-                                   text=f"🎮 {game} | Score: {score} | Level: {level} | Last Played: {last_played}",
-                                   font=("Arial", 10), bg="#34495e", fg="white", padx=10, pady=8)
-                details.pack(fill="x")
-        else:
-            no_data = tk.Label(frame, text="No games played yet! Start playing to see your progress.",
-                               font=("Arial", 12), bg="#2c3e50", fg="#e74c3c")
-            no_data.pack(pady=50)
-
-        ttk.Button(frame, text="← Back", command=self.show_main_menu).pack(pady=20)
-
-    def show_leaderboard(self):
-        self.clear_window()
-        self.root.configure(bg="#2c3e50")
-
-        header = tk.Label(self.root, text="🏆 LEADERBOARDS", font=("Arial", 18, "bold"),
-                          bg="#0f3460", fg="#00d4ff")
-        header.pack(fill="x", pady=15)
-
-        main_frame = tk.Frame(self.root, bg="#2c3e50")
-        main_frame.pack(expand=True, fill="both", padx=20, pady=20)
-
-        canvas = tk.Canvas(main_frame, bg="#2c3e50", highlightthickness=0)
-        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg="#2c3e50")
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        games = ['Tic Tac Toe', '2048', 'Hangman', 'Trivia']
-        for game in games:
-            game_frame = tk.Frame(scrollable_frame, bg="#34495e")
-            game_frame.pack(fill="x", pady=10)
-
-            game_label = tk.Label(game_frame, text=f"🎮 {game}",
-                                  font=("Arial", 12, "bold"), bg="#34495e", fg="#3498db")
-            game_label.pack(anchor="w", padx=15, pady=(10, 5))
-
-            leaderboard = self.db.get_leaderboard(game, limit=5)
-            if leaderboard:
-                for rank, (username, score, date) in enumerate(leaderboard, 1):
-                    medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}."
-                    rank_label = tk.Label(game_frame,
-                                          text=f"{medal} {username} - Score: {score} ({date})",
-                                          font=("Arial", 10), bg="#34495e", fg="white")
-                    rank_label.pack(anchor="w", padx=30)
+        def attempt_register():
+            success, msg = self.auth.register(
+                entries["Username"].get(), 
+                entries["Email"].get(), 
+                entries["Password"].get()
+            )
+            if success:
+                messagebox.showinfo("Success", msg)
+                self.show_login()
             else:
-                no_data = tk.Label(game_frame, text="No scores yet!",
-                                   font=("Arial", 10), bg="#34495e", fg="#e74c3c")
-                no_data.pack(anchor="w", padx=30)
+                messagebox.showerror("Error", msg)
 
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        ModernButton(frame, text="REGISTER", command=attempt_register, bg=self.colors['success']).pack(pady=20, fill='x')
+        tk.Button(frame, text="Back to Login", command=self.show_login, 
+                  bg=self.colors['secondary'], fg=self.colors['text'], relief="flat").pack()
 
-        ttk.Button(main_frame, text="← Back", command=self.show_main_menu).pack(pady=20)
+    def show_dashboard(self):
+        self.clear_screen()
+        user = self.auth.current_user
+        
+        # --- Sidebar ---
+        sidebar = tk.Frame(self.main_container, bg=self.colors['secondary'], width=250)
+        sidebar.pack(side="left", fill="y")
+        
+        # Profile Section
+        tk.Label(sidebar, text="👤", font=("Arial", 40), bg=self.colors['secondary'], fg=self.colors['text']).pack(pady=20)
+        tk.Label(sidebar, text=user['username'], font=("Arial", 16, "bold"), 
+                 bg=self.colors['secondary'], fg=self.colors['text']).pack()
+        tk.Label(sidebar, text=f"💰 {user['coins']} Coins", font=("Arial", 12), 
+                 bg=self.colors['secondary'], fg=self.colors['warning']).pack(pady=5)
+        
+        # Navigation
+        nav_items = [
+            ("🎮 Games", self.show_games_tab),
+            ("💬 Chat", self.show_chat_tab),
+            ("🏆 Leaderboard", self.show_leaderboard_tab),
+            ("⚙️ Settings", self.show_settings_tab),
+            ("🚪 Logout", self.show_login)
+        ]
+        
+        for text, cmd in nav_items:
+            btn = tk.Button(sidebar, text=text, command=cmd, 
+                            bg=self.colors['secondary'], fg=self.colors['text'],
+                            font=("Arial", 12), relief="flat", anchor="w", padx=20)
+            btn.pack(fill="x", pady=2)
 
-    def show_friends(self):
-        self.clear_window()
-        self.root.configure(bg="#2c3e50")
+        # --- Content Area ---
+        self.content_area = tk.Frame(self.main_container, bg=self.colors['bg'])
+        self.content_area.pack(side="right", fill="both", expand=True, padx=20, pady=20)
+        
+        self.show_games_tab()
 
-        header = tk.Label(self.root, text="👥 FRIENDS", font=("Arial", 18, "bold"),
-                          bg="#0f3460", fg="#00d4ff")
-        header.pack(fill="x", pady=15)
+    def show_games_tab(self):
+        for w in self.content_area.winfo_children(): w.destroy()
+        
+        tk.Label(self.content_area, text="GAME LIBRARY", font=("Arial", 24, "bold"), 
+                 bg=self.colors['bg'], fg=self.colors['text']).pack(anchor="w", pady=10)
 
-        main_frame = tk.Frame(self.root, bg="#2c3e50")
-        main_frame.pack(expand=True, fill="both", padx=20, pady=20)
+        games_grid = tk.Frame(self.content_area, bg=self.colors['bg'])
+        games_grid.pack(fill="both", expand=True)
 
-        friends_label = tk.Label(main_frame, text="Your Friends:", font=("Arial", 12, "bold"),
-                                 bg="#2c3e50", fg="white")
-        friends_label.pack(anchor="w", pady=(0, 10))
+        games = [
+            ("Snake Arcade", "🐍", "#2ecc71", lambda: SnakeGame(self.root, self.auth.current_user['user_id'], self.db_manager, self.refresh_stats)),
+            ("Tic Tac Toe", "❌⭕", "#3498db", lambda: TicTacToe(self.root, self.auth.current_user['user_id'], self.db_manager, self.refresh_stats)),
+            ("2048 (Soon)", "🔢", "#f1c40f", lambda: messagebox.showinfo("Info", "Coming soon in update 1.1")),
+            ("Trivia (Soon)", "❓", "#9b59b6", lambda: messagebox.showinfo("Info", "Coming soon in update 1.1"))
+        ]
 
-        friends_frame = tk.Frame(main_frame, bg="#34495e")
-        friends_frame.pack(fill="x", pady=10, ipady=10)
+        for i, (name, icon, color, cmd) in enumerate(games):
+            card = tk.Frame(games_grid, bg=self.colors['secondary'], width=200, height=150)
+            card.grid(row=i//3, column=i%3, padx=10, pady=10, sticky="nsew")
+            card.pack_propagate(False)
+            
+            tk.Label(card, text=icon, font=("Arial", 30), bg=self.colors['secondary'], fg=color).pack(pady=20)
+            tk.Label(card, text=name, font=("Arial", 14, "bold"), bg=self.colors['secondary'], fg=self.colors['text']).pack()
+            tk.Button(card, text="PLAY NOW", command=cmd, bg=color, fg="white", relief="flat").pack(pady=10)
 
-        friends = self.db.get_friends(self.current_user_id)
-        if friends:
-            for friend, friend_id in friends:
-                friend_label = tk.Label(friends_frame, text=f"✓ {friend}",
-                                        font=("Arial", 11), bg="#34495e", fg="#2ecc71")
-                friend_label.pack(anchor="w", padx=15, pady=5)
-        else:
-            no_friends = tk.Label(friends_frame, text="No friends yet! Add some to get started.",
-                                  font=("Arial", 11), bg="#34495e", fg="#e74c3c")
-            no_friends.pack(anchor="w", padx=15, pady=5)
+    def show_chat_tab(self):
+        for w in self.content_area.winfo_children(): w.destroy()
+        
+        tk.Label(self.content_area, text="FRIENDS & CHAT", font=("Arial", 24, "bold"), 
+                 bg=self.colors['bg'], fg=self.colors['text']).pack(anchor="w", pady=10)
+        
+        # Basic implementation of friend list + chat area
+        paned = tk.PanedWindow(self.content_area, orient="horizontal", bg=self.colors['bg'])
+        paned.pack(fill="both", expand=True)
+        
+        friends_frame = tk.Frame(paned, bg=self.colors['secondary'], width=200)
+        chat_frame = tk.Frame(paned, bg=self.colors['bg'])
+        
+        paned.add(friends_frame)
+        paned.add(chat_frame)
+        
+        # Add friend
+        def add_friend():
+            target = simpledialog.askstring("Add Friend", "Enter username:")
+            if target:
+                cursor = self.db_manager.get_connection().cursor()
+                cursor.execute("SELECT user_id FROM users WHERE username = ?", (target,))
+                res = cursor.fetchone()
+                if res:
+                    try:
+                        cursor.execute("INSERT INTO friends (user_id_1, user_id_2, status) VALUES (?, ?, 'accepted')", 
+                                     (self.auth.current_user['user_id'], res['user_id']))
+                        self.db_manager.get_connection().commit()
+                        self.show_chat_tab()
+                    except:
+                        messagebox.showinfo("Info", "Already friends or error.")
+                else:
+                    messagebox.showerror("Error", "User not found")
 
-        pending = self.db.get_pending_requests(self.current_user_id)
-        if pending:
-            requests_label = tk.Label(main_frame, text="Friend Requests:", font=("Arial", 12, "bold"),
-                                      bg="#2c3e50", fg="white")
-            requests_label.pack(anchor="w", pady=(20, 10))
+        tk.Button(friends_frame, text="+ Add Friend", command=add_friend, bg=self.colors['success'], fg="white").pack(fill="x")
+        
+        # Load friends
+        cursor = self.db_manager.get_connection().cursor()
+        cursor.execute("""
+            SELECT u.username, u.user_id FROM users u 
+            JOIN friends f ON u.user_id = f.user_id_2 
+            WHERE f.user_id_1 = ?
+        """, (self.auth.current_user['user_id'],))
+        friends = cursor.fetchall()
+        
+        self.selected_friend_id = None
+        
+        def select_friend(fid, name):
+            self.selected_friend_id = fid
+            chat_label.config(text=f"Chat with {name}")
+            load_messages(fid)
 
-            for requester, requester_id in pending:
-                req_frame = tk.Frame(main_frame, bg="#34495e")
-                req_frame.pack(fill="x", pady=5)
+        for f in friends:
+            tk.Button(friends_frame, text=f['username'], 
+                      command=lambda id=f['user_id'], n=f['username']: select_friend(id, n),
+                      bg=self.colors['secondary'], fg=self.colors['text'], relief="flat", anchor="w").pack(fill="x", padx=5, pady=2)
 
-                label = tk.Label(req_frame, text=f"📨 {requester}",
-                                 font=("Arial", 11), bg="#34495e", fg="#f39c12")
-                label.pack(side="left", padx=15, pady=8)
+        # Chat Area
+        chat_label = tk.Label(chat_frame, text="Select a friend", font=("Arial", 14), bg=self.colors['bg'], fg=self.colors['text'])
+        chat_label.pack(pady=10)
+        
+        msg_area = tk.Text(chat_frame, bg="white", height=15, state="disabled")
+        msg_area.pack(fill="both", expand=True, padx=10)
+        
+        input_frame = tk.Frame(chat_frame, bg=self.colors['bg'])
+        input_frame.pack(fill="x", padx=10, pady=10)
+        
+        msg_entry = tk.Entry(input_frame)
+        msg_entry.pack(side="left", fill="x", expand=True)
+        
+        def send_msg():
+            if self.selected_friend_id and msg_entry.get():
+                conn = self.db_manager.get_connection()
+                conn.execute("INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)",
+                             (self.auth.current_user['user_id'], self.selected_friend_id, msg_entry.get()))
+                conn.commit()
+                msg_entry.delete(0, "end")
+                load_messages(self.selected_friend_id)
 
-                def accept(rid=requester_id):
-                    self.db.accept_friend_request(rid, self.current_user_id)
-                    messagebox.showinfo("Success", "Friend request accepted!")
-                    self.show_friends()
+        tk.Button(input_frame, text="Send", command=send_msg, bg=self.colors['accent'], fg="white").pack(side="right")
 
-                def reject(rid=requester_id):
-                    self.db.reject_friend_request(rid, self.current_user_id)
-                    messagebox.showinfo("Success", "Friend request rejected!")
-                    self.show_friends()
+        def load_messages(fid):
+            msg_area.config(state="normal")
+            msg_area.delete(1.0, "end")
+            
+            cursor = self.db_manager.get_connection().cursor()
+            cursor.execute("""
+                SELECT sender_id, content FROM messages 
+                WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+                ORDER BY sent_at ASC
+            """, (self.auth.current_user['user_id'], fid, fid, self.auth.current_user['user_id']))
+            
+            msgs = cursor.fetchall()
+            for m in msgs:
+                prefix = "You: " if m['sender_id'] == self.auth.current_user['user_id'] else "Friend: "
+                msg_area.insert("end", prefix + m['content'] + "\n")
+            
+            msg_area.config(state="disabled")
+            msg_area.see("end")
 
-                tk.Button(req_frame, text="✓ Accept", command=accept, bg="#27ae60", fg="white",
-                          font=("Arial", 10), padx=10, pady=5).pack(side="right", padx=5)
-                tk.Button(req_frame, text="✗ Reject", command=reject, bg="#e74c3c", fg="white",
-                          font=("Arial", 10), padx=10, pady=5).pack(side="right", padx=5)
+    def show_leaderboard_tab(self):
+        for w in self.content_area.winfo_children(): w.destroy()
+        tk.Label(self.content_area, text="GLOBAL LEADERBOARD", font=("Arial", 24, "bold"), 
+                 bg=self.colors['bg'], fg=self.colors['text']).pack(pady=10)
+        
+        tree = ttk.Treeview(self.content_area, columns=("Rank", "User", "Game", "Score"), show="headings")
+        tree.heading("Rank", text="Rank")
+        tree.heading("User", text="User")
+        tree.heading("Game", text="Game")
+        tree.heading("Score", text="Score")
+        tree.pack(fill="both", expand=True)
+        
+        cursor = self.db_manager.get_connection().cursor()
+        cursor.execute("""
+            SELECT u.username, s.game_name, s.score 
+            FROM scores s JOIN users u ON s.user_id = u.user_id 
+            ORDER BY s.score DESC LIMIT 20
+        """)
+        for i, row in enumerate(cursor.fetchall(), 1):
+            tree.insert("", "end", values=(i, row['username'], row['game_name'], row['score']))
 
-        add_label = tk.Label(main_frame, text="Add Friend:", font=("Arial", 12, "bold"),
-                             bg="#2c3e50", fg="white")
-        add_label.pack(anchor="w", pady=(20, 10))
+    def show_settings_tab(self):
+        for w in self.content_area.winfo_children(): w.destroy()
+        tk.Label(self.content_area, text="SETTINGS", font=("Arial", 24, "bold"), 
+                 bg=self.colors['bg'], fg=self.colors['text']).pack(pady=10)
+        
+        # Theme Toggle
+        def toggle_theme():
+            new_theme = "light" if self.current_theme == "dark" else "dark"
+            self.auth.update_settings("theme", new_theme)
+            self.current_theme = new_theme
+            self.apply_theme()
+            messagebox.showinfo("Theme", "Theme updated. Please restart app to fully apply visual changes.")
+            self.show_dashboard() # Refresh UI
 
-        all_users = self.db.get_all_users()
-        user_friends = [u[0] for u in friends]
-        available_users = [u[0] for u in all_users if u[1] != self.current_user_id and u[0] not in user_friends]
+        tk.Button(self.content_area, text=f"Toggle Theme (Current: {self.current_theme})", 
+                  command=toggle_theme, font=("Arial", 12)).pack(pady=10)
+        
+        tk.Label(self.content_area, text="Control Bindings (Coming Soon)", bg=self.colors['bg'], fg=self.colors['text']).pack(pady=20)
 
-        friend_var = tk.StringVar()
-        friend_combo = ttk.Combobox(main_frame, textvariable=friend_var, values=available_users,
-                                    state="readonly", font=("Arial", 11))
-        friend_combo.pack(fill="x", pady=5, ipady=8)
-
-        def send_request():
-            selected = friend_var.get()
-            if not selected:
-                messagebox.showerror("Error", "Please select a user!")
-                return
-
-            friend_id = self.db.get_user_id_by_username(selected)
-            if self.db.send_friend_request(self.current_user_id, friend_id):
-                messagebox.showinfo("Success", "Friend request sent!")
-                self.show_friends()
-            else:
-                messagebox.showerror("Error", "Could not send request!")
-
-        add_btn = tk.Button(main_frame, text="Send Request", command=send_request,
-                            bg="#00d4ff", fg="#0f3460", font=("Arial", 11, "bold"),
-                            padx=20, pady=10)
-        add_btn.pack(pady=15)
-
-        ttk.Button(main_frame, text="← Back", command=self.show_main_menu).pack(pady=20)
-
+    def refresh_stats(self):
+        # Callback when a game closes to refresh coin count etc
+        cursor = self.db_manager.get_connection().cursor()
+        cursor.execute("SELECT * FROM users WHERE user_id = ?", (self.auth.current_user['user_id'],))
+        self.auth.current_user = dict(cursor.fetchone())
+        self.show_dashboard()
 
 if __name__ == "__main__":
-    print("🎮 Starting Gaming Platform...")
     root = tk.Tk()
-    app = GamingApp(root)
+    app = ArcadiaHubApp(root)
     root.mainloop()

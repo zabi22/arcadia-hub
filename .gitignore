@@ -1,0 +1,9 @@
+# Database
+gaming_app.db
+
+# Python
+__pycache__/
+*.py[cod]
+
+# IDEs
+.idea/
