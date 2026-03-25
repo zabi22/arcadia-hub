@@ -1,4 +1,4 @@
-## How to Play
+### How to Play
 
 1. Register a new account or login with existing credentials
 2. Collect daily login rewards to build your streak
@@ -6,25 +6,23 @@
 4. Add friends and challenge them
 5. Customize your experience in settings
 
-## Game Controls
+### Game Controls
 
-| Game | Controls |
-|------|----------|
-| Snake | Arrow keys to move, P to pause |
-| Tic Tac Toe | Click to place X |
-| Memory Match | Click cards to flip |
-| Reaction Time | Click when screen turns green |
-| Word Guess | Type letters, Enter to submit |
-| Pong | W/S or Arrow keys to move paddle |
+* **Snake:** Arrow keys to move, P to pause
+* **Tic Tac Toe:** Click to place X
+* **Memory Match:** Click cards to flip
+* **Reaction Time:** Click when screen turns green
+* **Word Guess:** Type letters, Enter to submit
+* **Pong:** W/S or Arrow keys to move paddle
 
-## Tech Stack
+### Tech Stack
 
 - **Python 3** - Core language
 - **Tkinter** - GUI framework
 - **SQLite** - Database for users, scores, and messages
 - **bcrypt** - Secure password hashing
 
-## Database Schema
+### Database Schema
 
 - Users (accounts, settings, stats)
 - Games (game library)
@@ -32,15 +30,15 @@
 - Friends (social connections)
 - Messages (chat history)
 
-## About
+### About
 
 I am 15 years old, very interested in coding, programming, ethical hacking, computers, AI, and technology. I built this gaming platform to learn and practice software development skills.
 
-## License
+### License
 
 This project is open source. Feel free to use, modify, and distribute.
 
-## Future Ideas
+### Future Ideas
 
 - Multiplayer support
 - More games
