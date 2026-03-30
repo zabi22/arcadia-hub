@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2 class="text-white mb-3"><i class="bi bi-gear"></i> Settings</h2>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-8">
+        <!-- Appearance Settings -->
+        <div class="card p-4">
+            <h4 class="text-white mb-3"><i class="bi bi-palette"></i> Appearance</h4>
+            <form method="POST">
+                <div class="mb-4">
+                    <label class="form-label text-white">Theme</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="theme" 
+                                   value="dark" id="darkTheme" 
+                                   {% if settings.theme == 'dark' or not settings.theme %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="darkTheme">
+                                Dark
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="theme" 
+                                   value="light" id="lightTheme"
+                                   {% if settings.theme == 'light' %}checked{% endif %}>
+                            <label class="form-check-label text-white" for="lightTheme">
+                                Light
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="sound" 
+                               id="soundToggle"
+                               {% if settings.sound != False %}checked{% endif %}>
+                        <label class="form-check-label text-white" for="soundToggle">
+                            Sound Effects
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="notifications" 
+                           id="notifToggle"
+                           {% if settings.notifications != False %}checked{% endif %}>
+                    <label class="form-check-label text-white" for="notifToggle">
+                        Notifications
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-accent mt-4">
+                    <i class="bi bi-check-lg"></i> Save Changes
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Account Info -->
+    <div class="col-md-4">
+        <div class="card p-4">
+            <h4 class="text-white mb-3"><i class="bi bi-shield-lock"></i> Account</h4>
+            <div class="mb-3">
+                <p class="text-white-50 mb-1">Username</p>
+                <p class="text-white">{{ user.username }}</p>
+            </div>
+            <div class="mb-3">
+                <p class="text-white-50 mb-1">Email</p>
+                <p class="text-white">{{ user.email }}</p>
+            </div>
+            <div class="mb-3">
+                <p class="text-white-50 mb-1">Member Since</p>
+                <p class="text-white">{{ user.created_at[:10] }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

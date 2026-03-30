@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.name }} - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="text-white mb-0">{{ game.icon }} {{ game.name }}</h3>
+                <a href="{{ url_for('games') }}" class="btn btn-sm btn-outline-light">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+            
+            <!-- Game Canvas -->
+            <div class="text-center mb-3">
+                <canvas id="gameCanvas" width="600" height="400" 
+                        style="background: #0f0f1a; border-radius: 10px; max-width: 100%;"></canvas>
+            </div>
+            
+            <!-- Score Display -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="text-white">
+                    <h5 class="mb-0">Score: <span id="currentScore">0</span></h5>
+                    <small class="text-white-50">High Score: <span id="highScore">0</span></small>
+                </div>
+                <button id="startBtn" class="btn btn-accent">
+                    <i class="bi bi-play-fill"></i> Start Game
+                </button>
+            </div>
+            
+            <!-- Controls Info -->
+            <div class="alert alert-info">
+                <strong><i class="bi bi-keyboard"></i> Controls:</strong> Use Arrow Keys to move the snake. 
+                Collect food to grow and earn points. Don't hit the walls or yourself!
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('startBtn');
+const currentScoreEl = document.getElementById('currentScore');
+const highScoreEl = document.getElementById('highScore');
+
+// Game state
+let gameRunning = false;
+let score = 0;
+let highScore = localStorage.getItem('snakeHighScore') || 0;
+highScoreEl.textContent = highScore;
+
+// Snake settings
+const cellSize = 20;
+const gridWidth = canvas.width / cellSize;
+const gridHeight = canvas.height / cellSize;
+
+let snake = [{x: 5, y: 10}, {x: 4, y: 10}, {x: 3, y: 10}];
+let direction = 'Right';
+let nextDirection = 'Right';
+let food = null;
+let gameSpeed = 150;
+let gameLoop = null;
+
+// Spawn food
+function spawnFood() {
+    while (true) {
+        const x = Math.floor(Math.random() * gridWidth);
+        const y = Math.floor(Math.random() * gridHeight);
+        if (!snake.some(segment => segment.x === x && segment.y === y)) {
+            return {x, y};
+        }
+    }
+}
+
+// Draw game
+function draw() {
+    // Clear canvas
+    ctx.fillStyle = '#0f0f1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw grid
+    for (let i = 0; i < gridWidth; i++) {
+        for (let j = 0; j < gridHeight; j++) {
+            if ((i + j) % 2 === 0) {
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(i * cellSize, j * cellSize, cellSize, cellSize);
+            }
+        }
+    }
+    
+    // Draw food
+    if (food) {
+        ctx.fillStyle = '#ff4757';
+        ctx.beginPath();
+        ctx.arc(
+            food.x * cellSize + cellSize/2,
+            food.y * cellSize + cellSize/2,
+            cellSize/2 - 2,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+    }
+    
+    // Draw snake
+    snake.forEach((segment, index) => {
+        ctx.fillStyle = index === 0 ? '#00ff88' : '#00cc6a';
+        ctx.fillRect(
+            segment.x * cellSize + 1,
+            segment.y * cellSize + 1,
+            cellSize - 2,
+            cellSize - 2
+        );
+    });
+}
+
+// Move snake
+function moveSnake() {
+    const head = {...snake[0]};
+    
+    switch(nextDirection) {
+        case 'Left': head.x--; break;
+        case 'Right': head.x++; break;
+        case 'Up': head.y--; break;
+        case 'Down': head.y++; break;
+    }
+    
+    // Check wall collision
+    if (head.x < 0 || head.x >= gridWidth || head.y < 0 || head.y >= gridHeight) {
+        gameOver();
+        return;
+    }
+    
+    // Check self collision
+    if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+        gameOver();
+        return;
+    }
+    
+    snake.unshift(head);
+    
+    // Check food collision
+    if (food && head.x === food.x && head.y === food.y) {
+        score += 10;
+        currentScoreEl.textContent = score;
+        food = spawnFood();
+        gameSpeed = Math.max(50, gameSpeed - 2);
+        clearInterval(gameLoop);
+        gameLoop = setInterval(update, gameSpeed);
+    } else {
+        snake.pop();
+    }
+}
+
+// Game over
+function gameOver() {
+    gameRunning = false;
+    clearInterval(gameLoop);
+    
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('snakeHighScore', highScore);
+        highScoreEl.textContent = highScore;
+    }
+    
+    // Save score to database
+    fetch('/api/score', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            game_key: '{{ game.game_key }}',
+            score: score,
+            play_time: Math.floor((Date.now() - startTime) / 1000)
+        })
+    }).then(response => response.json())
+      .then(data => {
+          if (data.success) {
+              alert(`Game Over! Score: ${score}\nCoins earned: ${data.coins_earned}`);
+          }
+      });
+    
+    startBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Play Again';
+    startBtn.disabled = false;
+}
+
+// Update game
+function update() {
+    direction = nextDirection;
+    moveSnake();
+    draw();
+}
+
+// Handle keyboard input
+document.addEventListener('keydown', (e) => {
+    const opposites = {'Left': 'Right', 'Right': 'Left', 'Up': 'Down', 'Down': 'Up'};
+    
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        e.preventDefault();
+        const newDir = e.key.replace('Arrow', '');
+        if (opposites[newDir] !== direction) {
+            nextDirection = newDir;
+        }
+    }
+});
+
+// Start game
+startBtn.addEventListener('click', () => {
+    if (gameRunning) return;
+    
+    snake = [{x: 5, y: 10}, {x: 4, y: 10}, {x: 3, y: 10}];
+    direction = 'Right';
+    nextDirection = 'Right';
+    score = 0;
+    currentScoreEl.textContent = score;
+    gameSpeed = 150;
+    food = spawnFood();
+    gameRunning = true;
+    startTime = Date.now();
+    
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<i class="bi bi-play-fill"></i> Playing...';
+    
+    gameLoop = setInterval(update, gameSpeed);
+});
+
+// Initial draw
+draw();
+</script>
+{% endblock %}

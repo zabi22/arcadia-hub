@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.name }} - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card p-4 text-center">
+            <div style="font-size: 5rem;" class="mb-3">{{ game.icon }}</div>
+            <h3 class="text-white mb-3">{{ game.name }}</h3>
+            <p class="text-white-50 mb-4">This game is coming soon! Check back later.</p>
+            <a href="{{ url_for('games') }}" class="btn btn-accent">
+                <i class="bi bi-arrow-left"></i> Back to Games
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

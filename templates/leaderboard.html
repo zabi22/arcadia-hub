@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Leaderboard - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2 class="text-white mb-3"><i class="bi bi-trophy"></i> Leaderboards</h2>
+    </div>
+</div>
+
+<!-- Overall Leaderboard -->
+<div class="card p-4 mb-4">
+    <h4 class="text-white mb-3"><i class="bi bi-graph-up-arrow"></i> Overall Rankings</h4>
+    <div class="table-responsive">
+        <table class="table table-dark table-hover">
+            <thead>
+                <tr>
+                    <th class="text-white">#</th>
+                    <th class="text-white">Player</th>
+                    <th class="text-white">Total Score</th>
+                    <th class="text-white">Games Played</th>
+                    <th class="text-white">Coins</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in overall %}
+                <tr class="{% if loop.index <= 3 %}leaderboard-item{% endif %}">
+                    <td class="text-white fs-5">
+                        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}#{{ loop.index }}{% endif %}
+                    </td>
+                    <td class="text-white fw-bold">{{ player.username }}</td>
+                    <td class="text-white">{{ player.total_score }}</td>
+                    <td class="text-white">{{ player.games_played }}</td>
+                    <td class="text-warning">{{ player.coins }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Game-specific Leaderboards -->
+<div class="row g-4">
+    {% for game in games %}
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h5 class="text-white mb-3">
+                {{ game.icon }} {{ game.name }}
+            </h5>
+            <div class="table-responsive">
+                <table class="table table-dark table-sm">
+                    <thead>
+                        <tr>
+                            <th class="text-white">#</th>
+                            <th class="text-white">Player</th>
+                            <th class="text-white">Best</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in game_leaderboards[game.game_key][:5] %}
+                        <tr>
+                            <td class="text-white">{{ loop.index }}</td>
+                            <td class="text-white">{{ entry.username }}</td>
+                            <td class="text-white">{{ entry.high_score }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

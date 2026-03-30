@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Friends - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2 class="text-white mb-3"><i class="bi bi-people"></i> Friends</h2>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Friend Requests -->
+    {% if pending %}
+    <div class="col-md-12">
+        <div class="card p-4">
+            <h4 class="text-white mb-3"><i class="bi bi-envelope"></i> Pending Requests</h4>
+            <div class="list-group">
+                {% for user in pending %}
+                <div class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">{{ user.username }}</h6>
+                        <small class="text-white-50">{{ user.email }}</small>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-success me-2">Accept</button>
+                        <button class="btn btn-sm btn-danger">Decline</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Friends List -->
+    <div class="col-md-12">
+        <div class="card p-4">
+            <h4 class="text-white mb-3"><i class="bi bi-heart"></i> Your Friends ({{ friends|length }})</h4>
+            {% if friends %}
+            <div class="row g-3">
+                {% for friend in friends %}
+                <div class="col-md-4 col-sm-6">
+                    <div class="card bg-dark border-secondary p-3 text-center">
+                        <div class="avatar-placeholder mb-2 mx-auto" style="width: 60px; height: 60px; font-size: 1.5rem;">
+                            {{ friend.username[0].upper() }}
+                        </div>
+                        <h6 class="text-white mb-1">{{ friend.username }}</h6>
+                        <small class="text-white-50">{{ friend.coins }} coins</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-white-50 text-center">No friends yet. Add some friends to compete with!</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Add Friend -->
+    <div class="col-md-12">
+        <div class="card p-4">
+            <h4 class="text-white mb-3"><i class="bi bi-person-plus"></i> Add Friend</h4>
+            <form id="addFriendForm" class="row g-3">
+                <div class="col-auto">
+                    <input type="text" class="form-control bg-dark text-white border-secondary" 
+                           id="friendUsername" placeholder="Enter username" required>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-accent">
+                        <i class="bi bi-person-plus"></i> Send Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('addFriendForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('friendUsername').value;
+    
+    try {
+        const response = await fetch('/api/friend/request', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username})
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            document.getElementById('friendUsername').value = '';
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Failed to send request');
+    }
+});
+</script>
+{% endblock %}

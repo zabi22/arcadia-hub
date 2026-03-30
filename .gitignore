@@ -1,12 +1,39 @@
 # Database
-gaming_app.db
+*.db
+*.sqlite
+*.sqlite3
 
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 
 # IDEs
 .idea/
+.vscode/
+*.swp
+*.swo
 
 # Virtual Environment
 .venv/
+env/
+venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Environments
+.env
+
+# Secrets
+instance/
+secrets/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
