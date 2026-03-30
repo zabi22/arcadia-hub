@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.name }} - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card p-4">
+            <div class="text-center mb-4">
+                <h3 class="text-white mb-2">🔢 {{ game.name }}</h3>
+                <p class="text-white-50">Combine tiles to reach 2048!</p>
+            </div>
+            
+            <!-- Score Board -->
+            <div class="row mb-3">
+                <div class="col-6 text-center">
+                    <div class="card bg-dark border-warning">
+                        <div class="card-body py-2">
+                            <h6 class="text-warning">Score</h6>
+                            <h4 id="score" class="text-white">0</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 text-center">
+                    <div class="card bg-dark border-info">
+                        <div class="card-body py-2">
+                            <h6 class="text-info">Best</h6>
+                            <h4 id="bestScore" class="text-white">0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Game Grid -->
+            <div id="grid-container" style="background: #1a1a2e; padding: 10px; border-radius: 10px; display: inline-block;"></div>
+            
+            <!-- Controls -->
+            <div class="text-center mt-4">
+                <button id="newGameBtn" class="btn btn-accent btn-lg">
+                    <i class="bi bi-arrow-clockwise"></i> New Game
+                </button>
+                <p class="text-white-50 mt-3">
+                    <strong><i class="bi bi-keyboard"></i> Controls:</strong> Arrow Keys or WASD to slide tiles
+                </p>
+            </div>
+            
+            <!-- Game Over Overlay -->
+            <div id="gameOver" style="display: none;" class="text-center mt-4">
+                <div class="alert alert-success">
+                    <h4>🎉 You Won!</h4>
+                    <p>Final Score: <span id="finalScore">0</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.grid-cell {
+    width: 80px;
+    height: 80px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 3px;
+    transition: all 0.2s;
+}
+
+.tile-0 { background: rgba(45, 53, 97, 0.5); }
+.tile-2 { background: #eee4da; color: #776e65; }
+.tile-4 { background: #ede0c8; color: #776e65; }
+.tile-8 { background: #f2b179; color: #f9f6f2; }
+.tile-16 { background: #f59563; color: #f9f6f2; }
+.tile-32 { background: #f67c5f; color: #f9f6f2; }
+.tile-64 { background: #f65e3b; color: #f9f6f2; }
+.tile-128 { background: #edcf72; color: #f9f6f2; font-size: 1.8rem; }
+.tile-256 { background: #edcc61; color: #f9f6f2; font-size: 1.8rem; }
+.tile-512 { background: #edc850; color: #f9f6f2; font-size: 1.8rem; }
+.tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 1.5rem; }
+.tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 1.5rem; box-shadow: 0 0 10px gold; }
+
+@keyframes pop {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.tile-new {
+    animation: pop 0.3s ease-in-out;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let grid = [];
+let score = 0;
+let bestScore = localStorage.getItem('2048best') || 0;
+document.getElementById('bestScore').textContent = bestScore;
+
+function initGrid() {
+    const container = document.getElementById('grid-container');
+    container.innerHTML = '';
+    for (let i = 0; i < 4; i++) {
+        const row = document.createElement('div');
+        row.style.whiteSpace = 'nowrap';
+        for (let j = 0; j < 4; j++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell tile-0';
+            cell.id = `cell-${i}-${j}`;
+            row.appendChild(cell);
+        }
+        container.appendChild(row);
+    }
+}
+
+function startGame() {
+    grid = [
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+    ];
+    score = 0;
+    document.getElementById('score').textContent = score;
+    document.getElementById('gameOver').style.display = 'none';
+    addNewTile();
+    addNewTile();
+    updateGrid();
+}
+
+function addNewTile() {
+    const empty = [];
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            if (grid[i][j] === 0) empty.push({i, j});
+        }
+    }
+    if (empty.length > 0) {
+        const {i, j} = empty[Math.floor(Math.random() * empty.length)];
+        grid[i][j] = Math.random() < 0.9 ? 2 : 4;
+    }
+}
+
+function updateGrid() {
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            const cell = document.getElementById(`cell-${i}-${j}`);
+            const value = grid[i][j];
+            cell.className = `grid-cell tile-${value}`;
+            cell.textContent = value === 0 ? '' : value;
+        }
+    }
+}
+
+function slide(row) {
+    let arr = row.filter(val => val !== 0);
+    for (let i = 0; i < arr.length - 1; i++) {
+        if (arr[i] === arr[i + 1]) {
+            arr[i] *= 2;
+            score += arr[i];
+            arr[i + 1] = 0;
+        }
+    }
+    arr = arr.filter(val => val !== 0);
+    while (arr.length < 4) arr.push(0);
+    return arr;
+}
+
+function moveLeft() {
+    let moved = false;
+    for (let i = 0; i < 4; i++) {
+        const oldRow = [...grid[i]];
+        grid[i] = slide(grid[i]);
+        if (oldRow.join(',') !== grid[i].join(',')) moved = true;
+    }
+    return moved;
+}
+
+function rotateGrid() {
+    const newGrid = [];
+    for (let j = 0; j < 4; j++) {
+        const row = [];
+        for (let i = 3; i >= 0; i--) {
+            row.push(grid[i][j]);
+        }
+        newGrid.push(row);
+    }
+    grid = newGrid;
+}
+
+function moveRight() {
+    rotateGrid();
+    rotateGrid();
+    const moved = moveLeft();
+    rotateGrid();
+    rotateGrid();
+    return moved;
+}
+
+function moveUp() {
+    rotateGrid();
+    rotateGrid();
+    rotateGrid();
+    const moved = moveLeft();
+    rotateGrid();
+    return moved;
+}
+
+function moveDown() {
+    rotateGrid();
+    const moved = moveLeft();
+    rotateGrid();
+    rotateGrid();
+    rotateGrid();
+    return moved;
+}
+
+function handleInput(direction) {
+    let moved = false;
+    switch(direction) {
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+            moved = moveLeft();
+            break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+            moved = moveRight();
+            break;
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+            moved = moveUp();
+            break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+            moved = moveDown();
+            break;
+    }
+    
+    if (moved) {
+        addNewTile();
+        updateGrid();
+        document.getElementById('score').textContent = score;
+        
+        if (score > bestScore) {
+            bestScore = score;
+            localStorage.setItem('2048best', bestScore);
+            document.getElementById('bestScore').textContent = bestScore;
+        }
+        
+        checkWin();
+        checkGameOver();
+    }
+}
+
+function checkWin() {
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            if (grid[i][j] === 2048) {
+                document.getElementById('finalScore').textContent = score;
+                document.getElementById('gameOver').style.display = 'block';
+                saveScore(score);
+            }
+        }
+    }
+}
+
+function checkGameOver() {
+    // Check for empty cells
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            if (grid[i][j] === 0) return;
+        }
+    }
+    
+    // Check for possible merges
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 3; j++) {
+            if (grid[i][j] === grid[i][j + 1]) return;
+        }
+    }
+    for (let j = 0; j < 4; j++) {
+        for (let i = 0; i < 3; i++) {
+            if (grid[i][j] === grid[i + 1][j]) return;
+        }
+    }
+    
+    // Game over
+    document.getElementById('finalScore').textContent = score;
+    document.querySelector('#gameOver h4').textContent = '💀 Game Over!';
+    document.getElementById('gameOver').style.display = 'block';
+    saveScore(score);
+}
+
+function saveScore(score) {
+    fetch('/api/score', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            game_key: '{{ game.game_key }}',
+            score: score,
+            play_time: 120
+        })
+    });
+}
+
+// Event listeners
+document.addEventListener('keydown', (e) => {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key)) {
+        e.preventDefault();
+        handleInput(e.key);
+    }
+});
+
+document.getElementById('newGameBtn').addEventListener('click', startGame);
+
+// Initialize
+initGrid();
+startGame();
+</script>
+{% endblock %}
