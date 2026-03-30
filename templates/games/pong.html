@@ -4,15 +4,258 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card p-4 text-center">
-            <div style="font-size: 5rem;" class="mb-3">{{ game.icon }}</div>
-            <h3 class="text-white mb-3">{{ game.name }}</h3>
-            <p class="text-white-50 mb-4">This game is coming soon! Check back later.</p>
-            <a href="{{ url_for('games') }}" class="btn btn-accent">
-                <i class="bi bi-arrow-left"></i> Back to Games
-            </a>
+    <div class="col-md-10">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="text-white mb-0">{{ game.icon }} {{ game.name }}</h3>
+                <a href="{{ url_for('games') }}" class="btn btn-sm btn-outline-light">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+            
+            <!-- Game Canvas -->
+            <div class="text-center mb-3">
+                <canvas id="gameCanvas" width="700" height="400" 
+                        style="background: #0f0f1a; border-radius: 10px; max-width: 100%; border: 2px solid #2d3561;"></canvas>
+            </div>
+            
+            <!-- Score Display -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="text-white">
+                    <h5 class="mb-0">Player: <span id="playerScore">0</span></h5>
+                    <small class="text-white-50">Computer: <span id="computerScore">0</span></small>
+                </div>
+                <button id="startBtn" class="btn btn-accent">
+                    <i class="bi bi-play-fill"></i> Start Game
+                </button>
+            </div>
+            
+            <!-- Controls Info -->
+            <div class="alert alert-info">
+                <strong><i class="bi bi-keyboard"></i> Controls:</strong> 
+                <strong>W / ↑</strong> - Move Up | <strong>S / ↓</strong> - Move Down
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('startBtn');
+const playerScoreEl = document.getElementById('playerScore');
+const computerScoreEl = document.getElementById('computerScore');
+
+// Game objects
+const ball = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    radius: 10,
+    speedX: 5,
+    speedY: 5,
+    color: '#00d4ff'
+};
+
+const paddleHeight = 80;
+const paddleWidth = 10;
+
+const player = {
+    x: 10,
+    y: canvas.height / 2 - paddleHeight / 2,
+    width: paddleWidth,
+    height: paddleHeight,
+    color: '#00ff88',
+    score: 0,
+    dy: 0
+};
+
+const computer = {
+    x: canvas.width - 20,
+    y: canvas.height / 2 - paddleHeight / 2,
+    width: paddleWidth,
+    height: paddleHeight,
+    color: '#ff4757',
+    score: 0,
+    speed: 4
+};
+
+let gameRunning = false;
+let animationId = null;
+
+// Draw functions
+function drawRect(x, y, w, h, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+}
+
+function drawCircle(x, y, r, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2, false);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawNet() {
+    for (let i = 0; i < canvas.height; i += 20) {
+        drawRect(canvas.width / 2 - 1, i, 2, 10, '#2d3561');
+    }
+}
+
+function draw() {
+    // Clear canvas
+    drawRect(0, 0, canvas.width, canvas.height, '#0f0f1a');
+    
+    // Draw net
+    drawNet();
+    
+    // Draw paddles
+    drawRect(player.x, player.y, player.width, player.height, player.color);
+    drawRect(computer.x, computer.y, computer.width, computer.height, computer.color);
+    
+    // Draw ball
+    drawCircle(ball.x, ball.y, ball.radius, ball.color);
+    
+    // Scores
+    playerScoreEl.textContent = player.score;
+    computerScoreEl.textContent = computer.score;
+}
+
+function resetBall() {
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height / 2;
+    ball.speedX = -ball.speedX;
+    ball.speedY = (Math.random() * 6 - 3);
+}
+
+function update() {
+    // Move player
+    player.y += player.dy;
+    if (player.y < 0) player.y = 0;
+    if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+    
+    // Computer AI
+    const computerCenter = computer.y + computer.height / 2;
+    if (computerCenter < ball.y - 35) {
+        computer.y += computer.speed;
+    } else if (computerCenter > ball.y + 35) {
+        computer.y -= computer.speed;
+    }
+    if (computer.y < 0) computer.y = 0;
+    if (computer.y + computer.height > canvas.height) computer.y = canvas.height - computer.height;
+    
+    // Move ball
+    ball.x += ball.speedX;
+    ball.y += ball.speedY;
+    
+    // Wall collision (top/bottom)
+    if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
+        ball.speedY = -ball.speedY;
+    }
+    
+    // Paddle collision
+    let collidePlayer = ball.x - ball.radius < player.x + player.width && 
+                        ball.x + ball.radius > player.x &&
+                        ball.y > player.y && ball.y < player.y + player.height;
+    
+    let collideComputer = ball.x - ball.radius < computer.x + computer.width && 
+                          ball.x + ball.radius > computer.x &&
+                          ball.y > computer.y && ball.y < computer.y + computer.height;
+    
+    if (collidePlayer || collideComputer) {
+        ball.speedX = -ball.speedX;
+        // Increase speed slightly
+        ball.speedX *= 1.05;
+        ball.speedY *= 1.05;
+    }
+    
+    // Scoring
+    if (ball.x < 0) {
+        computer.score++;
+        resetBall();
+    } else if (ball.x > canvas.width) {
+        player.score++;
+        resetBall();
+    }
+    
+    // Check for win
+    if (player.score >= 5 || computer.score >= 5) {
+        gameOver();
+    }
+}
+
+function gameLoop() {
+    if (!gameRunning) return;
+    update();
+    draw();
+    animationId = requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+    if (gameRunning) return;
+    
+    player.score = 0;
+    computer.score = 0;
+    player.y = canvas.height / 2 - paddleHeight / 2;
+    computer.y = canvas.height / 2 - paddleHeight / 2;
+    resetBall();
+    
+    gameRunning = true;
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<i class="bi bi-play-fill"></i> Playing...';
+    
+    gameLoop();
+}
+
+function gameOver() {
+    gameRunning = false;
+    cancelAnimationFrame(animationId);
+    
+    const winner = player.score >= 5 ? 'You Win! 🎉' : 'Computer Wins! 💪';
+    const score = player.score >= 5 ? 100 : 50;
+    
+    setTimeout(() => {
+        alert(`${winner}\nFinal Score: ${player.score}-${computer.score}`);
+        saveScore(score);
+        
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Play Again';
+    }, 100);
+}
+
+function saveScore(score) {
+    fetch('/api/score', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            game_key: '{{ game.game_key }}',
+            score: score,
+            play_time: 60
+        })
+    });
+}
+
+// Controls
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') {
+        player.dy = -6;
+    } else if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') {
+        player.dy = 6;
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp' ||
+        e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') {
+        player.dy = 0;
+    }
+});
+
+startBtn.addEventListener('click', startGame);
+
+// Initial draw
+draw();
+</script>
 {% endblock %}

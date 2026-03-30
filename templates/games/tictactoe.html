@@ -5,14 +5,228 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
-        <div class="card p-4 text-center">
-            <div style="font-size: 5rem;" class="mb-3">{{ game.icon }}</div>
-            <h3 class="text-white mb-3">{{ game.name }}</h3>
-            <p class="text-white-50 mb-4">This game is coming soon! Check back later.</p>
-            <a href="{{ url_for('games') }}" class="btn btn-accent">
-                <i class="bi bi-arrow-left"></i> Back to Games
-            </a>
+        <div class="card p-4">
+            <div class="text-center mb-4">
+                <h3 class="text-white mb-2">{{ game.icon }} {{ game.name }}</h3>
+                <p class="text-white-50">Challenge a friend or test your skills!</p>
+            </div>
+            
+            <!-- Game Board -->
+            <div class="text-center mb-4">
+                <div id="status" class="text-white fs-4 mb-3">Player X's turn</div>
+                <div class="d-inline-block" style="background: #1a1a2e; padding: 20px; border-radius: 15px;">
+                    <div class="row g-2" id="board">
+                        <div class="col-4"><button class="cell btn btn-lg" data-index="0"></button></div>
+                        <div class="col-4"><button class="cell btn btn-lg" data-index="1"></button></div>
+                        <div class="col-4"><button class="cell btn btn-lg" data-index="2"></button></div>
+                        <div class="col-4"><button class="cell btn btn-lg" data-index="3"></button></div>
+                        <div class="col-4"><button class="cell btn btn-lg" data-index="4"></button></div>
+                        <div class="col-4"><button class="cell btn btn-lg" data-index="5"></button></div>
+                        <div class="col-4"><button class="cell btn btn-lg" data-index="6"></button></div>
+                        <div class="col-4"><button class="cell btn btn-lg" data-index="7"></button></div>
+                        <div class="col-4"><button class="cell btn btn-lg" data-index="8"></button></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Controls -->
+            <div class="text-center">
+                <button id="restartBtn" class="btn btn-accent me-2">
+                    <i class="bi bi-arrow-clockwise"></i> Restart Game
+                </button>
+                <button id="resetScoreBtn" class="btn btn-outline-light">
+                    <i class="bi bi-trash"></i> Reset Scores
+                </button>
+            </div>
+            
+            <!-- Score Board -->
+            <div class="row mt-4">
+                <div class="col-4 text-center">
+                    <div class="card bg-dark border-info">
+                        <div class="card-body">
+                            <h6 class="text-info">Player X</h6>
+                            <h4 id="scoreX" class="text-white">0</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4 text-center">
+                    <div class="card bg-dark border-secondary">
+                        <div class="card-body">
+                            <h6 class="text-white-50">Draws</h6>
+                            <h4 id="scoreDraw" class="text-white">0</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4 text-center">
+                    <div class="card bg-dark border-warning">
+                        <div class="card-body">
+                            <h6 class="text-warning">Player O</h6>
+                            <h4 id="scoreO" class="text-white">0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.cell {
+    width: 100px;
+    height: 100px;
+    font-size: 3rem;
+    font-weight: bold;
+    background: rgba(22, 33, 62, 0.8);
+    color: white;
+    border: 2px solid #2d3561;
+    transition: all 0.3s;
+}
+
+.cell:hover:not(:disabled) {
+    background: rgba(0, 212, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.cell.x {
+    color: #00d4ff;
+}
+
+.cell.o {
+    color: #ffd700;
+}
+
+.cell.winner {
+    background: rgba(0, 255, 136, 0.3) !important;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPlayer = 'X';
+let gameActive = true;
+let gameState = ['', '', '', '', '', '', '', '', ''];
+let scores = { X: 0, O: 0, draw: 0 };
+
+const winningConditions = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+    [0, 4, 8], [2, 4, 6]             // Diagonals
+];
+
+const cells = document.querySelectorAll('.cell');
+const statusDisplay = document.getElementById('status');
+const scoreXEl = document.getElementById('scoreX');
+const scoreOEl = document.getElementById('scoreO');
+const scoreDrawEl = document.getElementById('scoreDraw');
+
+function handleCellClick(e) {
+    const clickedCell = e.target;
+    const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+    
+    if (gameState[clickedCellIndex] !== '' || !gameActive) {
+        return;
+    }
+    
+    gameState[clickedCellIndex] = currentPlayer;
+    clickedCell.textContent = currentPlayer;
+    clickedCell.classList.add(currentPlayer.toLowerCase());
+    
+    checkResult();
+}
+
+function checkResult() {
+    let roundWon = false;
+    let winningLine = [];
+    
+    for (let i = 0; i < winningConditions.length; i++) {
+        const [a, b, c] = winningConditions[i];
+        if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+            roundWon = true;
+            winningLine = [a, b, c];
+            break;
+        }
+    }
+    
+    if (roundWon) {
+        statusDisplay.textContent = `Player ${currentPlayer} wins! 🎉`;
+        gameActive = false;
+        scores[currentPlayer]++;
+        updateScores();
+        
+        // Highlight winning cells
+        winningLine.forEach(index => {
+            cells[index].classList.add('winner');
+        });
+        
+        // Save score after delay
+        setTimeout(saveScore, 1000);
+        return;
+    }
+    
+    if (!gameState.includes('')) {
+        statusDisplay.textContent = "It's a draw! 🤝";
+        gameActive = false;
+        scores.draw++;
+        updateScores();
+        setTimeout(saveScore, 1000);
+        return;
+    }
+    
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    statusDisplay.textContent = `Player ${currentPlayer}'s turn`;
+}
+
+function updateScores() {
+    scoreXEl.textContent = scores.X;
+    scoreOEl.textContent = scores.O;
+    scoreDrawEl.textContent = scores.draw;
+}
+
+function saveScore() {
+    const winner = scores.X > scores.O ? 'X' : (scores.O > scores.X ? 'O' : 'draw');
+    const score = winner === 'draw' ? 5 : (winner === currentPlayer ? 10 : 5);
+    
+    fetch('/api/score', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            game_key: '{{ game.game_key }}',
+            score: score * Math.max(scores.X, scores.O),
+            play_time: 60
+        })
+    });
+}
+
+function restartGame() {
+    gameActive = true;
+    currentPlayer = 'X';
+    gameState = ['', '', '', '', '', '', '', '', ''];
+    statusDisplay.textContent = `Player X's turn`;
+    
+    cells.forEach(cell => {
+        cell.textContent = '';
+        cell.classList.remove('x', 'o', 'winner');
+    });
+}
+
+function resetScores() {
+    scores = { X: 0, O: 0, draw: 0 };
+    updateScores();
+    restartGame();
+}
+
+// Event listeners
+cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+document.getElementById('restartBtn').addEventListener('click', restartGame);
+document.getElementById('resetScoreBtn').addEventListener('click', resetScores);
+</script>
 {% endblock %}

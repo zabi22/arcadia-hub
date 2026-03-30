@@ -6,13 +6,144 @@
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card p-4 text-center">
-            <div style="font-size: 5rem;" class="mb-3">{{ game.icon }}</div>
-            <h3 class="text-white mb-3">{{ game.name }}</h3>
-            <p class="text-white-50 mb-4">This game is coming soon! Check back later.</p>
-            <a href="{{ url_for('games') }}" class="btn btn-accent">
-                <i class="bi bi-arrow-left"></i> Back to Games
-            </a>
+            <h3 class="text-white mb-2">{{ game.icon }} {{ game.name }}</h3>
+            <p class="text-white-50 mb-4">Test your reaction speed!</p>
+            
+            <!-- Game Area -->
+            <div id="gameArea" class="mb-4" style="height: 300px; border-radius: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.1s;"
+                 onclick="handleClick()">
+                <div>
+                    <div id="instruction" style="font-size: 2rem; color: white; font-weight: bold;">
+                        Click Start to Begin
+                    </div>
+                    <div id="result" class="mt-3" style="font-size: 1.5rem; color: #00ff88; display: none;"></div>
+                </div>
+            </div>
+            
+            <!-- Stats -->
+            <div class="row mb-3">
+                <div class="col-6">
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <h6 class="text-info">Best Time</h6>
+                            <h4 id="bestTime" class="text-white">-</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <h6 class="text-warning">Last Time</h6>
+                            <h4 id="lastTime" class="text-white">-</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Controls -->
+            <div class="text-center">
+                <button id="startBtn" class="btn btn-accent btn-lg">
+                    <i class="bi bi-play-fill"></i> Start Test
+                </button>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let waitingForStart = false;
+let waitingForClick = false;
+let startTime = 0;
+let timeoutId = null;
+let bestTime = localStorage.getItem('reactionBest') || null;
+
+if (bestTime) {
+    document.getElementById('bestTime').textContent = bestTime + 'ms';
+}
+
+function handleClick() {
+    if (waitingForStart) {
+        // Clicked too early!
+        clearTimeout(timeoutId);
+        waitingForStart = false;
+        document.getElementById('instruction').textContent = 'Too early! Click Start again';
+        document.getElementById('gameArea').style.background = '#ff4757';
+        return;
+    }
+    
+    if (waitingForClick) {
+        const reactionTime = Date.now() - startTime;
+        waitingForClick = false;
+        
+        document.getElementById('gameArea').style.background = '#00ff88';
+        document.getElementById('instruction').textContent = `${reactionTime}ms`;
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result').textContent = getReactionRating(reactionTime);
+        
+        // Update stats
+        document.getElementById('lastTime').textContent = reactionTime + 'ms';
+        
+        if (!bestTime || reactionTime < parseInt(bestTime)) {
+            bestTime = reactionTime;
+            localStorage.setItem('reactionBest', bestTime);
+            document.getElementById('bestTime').textContent = bestTime + 'ms';
+        }
+        
+        // Save score
+        saveScore(reactionTime);
+    }
+}
+
+function getReactionRating(time) {
+    if (time < 200) return '🏆 Incredible!';
+    if (time < 250) return '⭐ Excellent!';
+    if (time < 300) return '👍 Good!';
+    if (time < 400) return '😊 Average';
+    return '💪 Keep practicing!';
+}
+
+function startTest() {
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('gameArea').style.background = '#1a1a2e';
+    document.getElementById('result').style.display = 'none';
+    
+    const randomDelay = Math.random() * 3000 + 2000; // 2-5 seconds
+    
+    waitingForStart = true;
+    document.getElementById('instruction').textContent = 'Wait for green...';
+    
+    timeoutId = setTimeout(() => {
+        waitingForStart = false;
+        waitingForClick = true;
+        startTime = Date.now();
+        document.getElementById('gameArea').style.background = '#00ff88';
+        document.getElementById('instruction').textContent = 'CLICK NOW!';
+    }, randomDelay);
+}
+
+function saveScore(reactionTime) {
+    // Lower time = better score, so invert it
+    const score = Math.max(1000 - reactionTime, 100);
+    
+    fetch('/api/score', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            game_key: '{{ game.game_key }}',
+            score: score,
+            play_time: 5
+        })
+    }).then(() => {
+        document.getElementById('startBtn').disabled = false;
+        setTimeout(() => {
+            document.getElementById('gameArea').style.background = '#1a1a2e';
+            document.getElementById('instruction').textContent = 'Click Start to try again';
+        }, 2000);
+    });
+}
+
+document.getElementById('startBtn').addEventListener('click', startTest);
+</script>
 {% endblock %}

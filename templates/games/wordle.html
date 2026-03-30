@@ -5,14 +5,291 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
-        <div class="card p-4 text-center">
-            <div style="font-size: 5rem;" class="mb-3">{{ game.icon }}</div>
-            <h3 class="text-white mb-3">{{ game.name }}</h3>
-            <p class="text-white-50 mb-4">This game is coming soon! Check back later.</p>
-            <a href="{{ url_for('games') }}" class="btn btn-accent">
-                <i class="bi bi-arrow-left"></i> Back to Games
-            </a>
+        <div class="card p-4">
+            <div class="text-center mb-4">
+                <h3 class="text-white mb-2">{{ game.icon }} {{ game.name }}</h3>
+                <p class="text-white-50">Guess the 5-letter word!</p>
+            </div>
+            
+            <!-- Game Board -->
+            <div id="board" class="mb-3" style="display: grid; gap: 5px; max-width: 400px; margin: 0 auto;"></div>
+            
+            <!-- Keyboard -->
+            <div id="keyboard" class="mb-3" style="max-width: 400px; margin: 0 auto;"></div>
+            
+            <!-- Controls -->
+            <div class="text-center">
+                <div id="message" class="text-white mb-3 fs-5"></div>
+                <button id="newGameBtn" class="btn btn-accent">
+                    <i class="bi bi-arrow-clockwise"></i> New Word
+                </button>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.tile {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #2d3561;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    background: rgba(22, 33, 62, 0.8);
+    color: white;
+    transition: all 0.3s;
+}
+
+.tile.active {
+    border-color: #00d4ff;
+}
+
+.tile.correct {
+    background: #00ff88 !important;
+    border-color: #00ff88;
+}
+
+.tile.present {
+    background: #ffd700 !important;
+    border-color: #ffd700;
+    color: #000;
+}
+
+.tile.absent {
+    background: #2d3561 !important;
+    border-color: #2d3561;
+}
+
+.key {
+    padding: 15px 10px;
+    margin: 3px;
+    background: rgba(45, 53, 97, 0.8);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.key:hover {
+    background: rgba(0, 212, 255, 0.3);
+}
+
+.key.correct { background: #00ff88; color: black; }
+.key.present { background: #ffd700; color: black; }
+.key.absent { background: #2d3561; opacity: 0.5; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const words = ['PYTHON', 'GAMER', 'CODEX', 'REACT', 'FLASK', 'SMART', 'POWER', 'LIGHT', 'MUSIC', 'WORLD'];
+let secretWord = '';
+let currentRow = 0;
+let currentTile = 0;
+let guesses = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']];
+let gameOver = false;
+
+function initGame() {
+    secretWord = words[Math.floor(Math.random() * words.length)];
+    console.log('Secret:', secretWord); // For testing
+    createBoard();
+    createKeyboard();
+}
+
+function createBoard() {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    for (let i = 0; i < 6; i++) {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'center';
+        row.style.gap = '5px';
+        
+        for (let j = 0; j < 5; j++) {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.id = `tile-${i}-${j}`;
+            row.appendChild(tile);
+        }
+        board.appendChild(row);
+    }
+}
+
+function createKeyboard() {
+    const keyboard = document.getElementById('keyboard');
+    keyboard.innerHTML = '';
+    const rows = [
+        'QWERTYUIOP',
+        'ASDFGHJKL',
+        'ZXCVBNM'
+    ];
+    
+    rows.forEach(row => {
+        const rowDiv = document.createElement('div');
+        rowDiv.style.textAlign = 'center';
+        rowDiv.style.marginBottom = '5px';
+        
+        for (let char of row) {
+            const key = document.createElement('button');
+            key.className = 'key';
+            key.textContent = char;
+            key.dataset.key = char;
+            key.onclick = () => handleKeyPress(char);
+            rowDiv.appendChild(key);
+        }
+        keyboard.appendChild(rowDiv);
+    });
+    
+    // Add Enter and Backspace
+    const lastRow = keyboard.lastChild;
+    const enterKey = document.createElement('button');
+    enterKey.className = 'key';
+    enterKey.textContent = 'ENTER';
+    enterKey.style.width = '60px';
+    enterKey.onclick = submitGuess;
+    lastRow.insertBefore(enterKey, lastRow.firstChild);
+    
+    const backKey = document.createElement('button');
+    backKey.className = 'key';
+    backKey.textContent = '⌫';
+    backKey.style.width = '60px';
+    backKey.onclick = deleteLetter;
+    lastRow.appendChild(backKey);
+}
+
+function handleKeyPress(letter) {
+    if (gameOver || currentTile >= 5) return;
+    
+    guesses[currentRow][currentTile] = letter;
+    const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+    tile.textContent = letter;
+    tile.classList.add('active');
+    currentTile++;
+}
+
+function deleteLetter() {
+    if (currentTile === 0) return;
+    currentTile--;
+    guesses[currentRow][currentTile] = '';
+    const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+    tile.textContent = '';
+    tile.classList.remove('active');
+}
+
+function submitGuess() {
+    if (currentTile < 5) {
+        showMessage('Not enough letters!');
+        return;
+    }
+    
+    const guess = guesses[currentRow].join('');
+    checkGuess(guess);
+}
+
+function checkGuess(guess) {
+    const solution = secretWord.split('');
+    const guessArr = guess.split('');
+    const result = new Array(5).fill('absent');
+    
+    // First pass: find correct letters
+    for (let i = 0; i < 5; i++) {
+        if (guessArr[i] === solution[i]) {
+            result[i] = 'correct';
+            solution[i] = null;
+            guessArr[i] = null;
+        }
+    }
+    
+    // Second pass: find present letters
+    for (let i = 0; i < 5; i++) {
+        if (guessArr[i] && solution.includes(guessArr[i])) {
+            result[i] = 'present';
+            solution[solution.indexOf(guessArr[i])] = null;
+        }
+    }
+    
+    // Animate and color tiles
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            const tile = document.getElementById(`tile-${currentRow}-${i}`);
+            tile.classList.remove('active');
+            tile.classList.add(result[i]);
+            
+            // Update keyboard
+            const key = document.querySelector(`[data-key="${guesses[currentRow][i]}"]`);
+            if (key) {
+                if (result[i] === 'correct') key.classList.add('correct');
+                else if (result[i] === 'present' && !key.classList.contains('correct')) key.classList.add('present');
+                else if (result[i] === 'absent' && !key.classList.contains('correct') && !key.classList.contains('present')) key.classList.add('absent');
+            }
+        }, i * 200);
+    }
+    
+    // Check win/loss
+    setTimeout(() => {
+        if (guess === secretWord) {
+            showMessage('🎉 Correct! You won!', 'success');
+            gameOver = true;
+            saveScore(100);
+        } else if (currentRow === 5) {
+            showMessage(`Game Over! The word was ${secretWord}`, 'danger');
+            gameOver = true;
+            saveScore(10);
+        } else {
+            currentRow++;
+            currentTile = 0;
+        }
+    }, 1000);
+}
+
+function showMessage(msg, type = 'info') {
+    const msgEl = document.getElementById('message');
+    msgEl.textContent = msg;
+    msgEl.className = `text-${type === 'success' ? 'success' : type === 'danger' ? 'danger' : 'white'} mb-3 fs-5`;
+}
+
+function saveScore(score) {
+    fetch('/api/score', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            game_key: '{{ game.game_key }}',
+            score: score,
+            play_time: 60
+        })
+    });
+}
+
+document.getElementById('newGameBtn').addEventListener('click', () => {
+    currentRow = 0;
+    currentTile = 0;
+    gameOver = false;
+    guesses = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']];
+    document.getElementById('message').textContent = '';
+    initGame();
+});
+
+// Keyboard input
+document.addEventListener('keydown', (e) => {
+    if (gameOver) return;
+    
+    if (e.key === 'Enter') {
+        submitGuess();
+    } else if (e.key === 'Backspace') {
+        deleteLetter();
+    } else if (/^[a-zA-Z]$/.test(e.key)) {
+        handleKeyPress(e.key.toUpperCase());
+    }
+});
+
+initGame();
+</script>
 {% endblock %}
