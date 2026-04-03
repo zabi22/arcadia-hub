@@ -3,9 +3,10 @@ from functools import wraps
 import os
 from database import DatabaseManager
 from auth import AuthSystem
+from shop import SHOP_ITEMS, validate_purchase
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 
 # Initialize database and auth
 db = DatabaseManager()
@@ -300,6 +301,78 @@ def send_friend_request():
         return jsonify({'success': True, 'message': 'Friend request sent!'})
     except sqlite3.IntegrityError:
         return jsonify({'error': 'Friend request already sent'}), 400
+
+@app.route('/shop')
+@login_required
+def shop():
+    user_id = session['user_id']
+    user = db.fetch_one("SELECT * FROM users WHERE user_id = ?", (user_id,))
+    
+    items_by_category = {}
+    for item_id, item in SHOP_ITEMS.items():
+        category = item['category']
+        if category not in items_by_category:
+            items_by_category[category] = []
+        item['id'] = item_id
+        items_by_category[category].append(item)
+    
+    return render_template('shop.html', user=user, items_by_category=items_by_category)
+
+@app.route('/api/shop/purchase', methods=['POST'])
+@login_required
+def purchase_item():
+    user_id = session['user_id']
+    data = request.get_json()
+    item_id = data.get('item_id')
+    
+    if not item_id:
+        return jsonify({'error': 'Item ID required'}), 400
+    
+    user = db.fetch_one("SELECT coins FROM users WHERE user_id = ?", (user_id,))
+    
+    valid, message = validate_purchase(item_id, user['coins'])
+    if not valid:
+        return jsonify({'error': message}), 400
+    
+    item = SHOP_ITEMS[item_id]
+    new_coins = user['coins'] - item['price']
+    
+    db.execute(
+        "UPDATE users SET coins = ? WHERE user_id = ?",
+        (new_coins, user_id)
+    )
+    
+    db.execute(
+        """INSERT INTO user_inventory (user_id, item_id, acquired_at) 
+           VALUES (?, ?, datetime('now'))""",
+        (user_id, item_id)
+    )
+    
+    return jsonify({
+        'success': True,
+        'message': f'Successfully purchased {item["name"]}!',
+        'new_coins': new_coins
+    })
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    user_id = session['user_id']
+    user = db.fetch_one("SELECT * FROM users WHERE user_id = ?", (user_id,))
+    
+    inventory_items = db.fetch_all(
+        """SELECT * FROM user_inventory WHERE user_id = ? ORDER BY acquired_at DESC""",
+        (user_id,)
+    )
+    
+    inventory_details = []
+    for inv_item in inventory_items:
+        if inv_item['item_id'] in SHOP_ITEMS:
+            item = SHOP_ITEMS[inv_item['item_id']].copy()
+            item['acquired_at'] = inv_item['acquired_at']
+            inventory_details.append(item)
+    
+    return render_template('inventory.html', user=user, items=inventory_details)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

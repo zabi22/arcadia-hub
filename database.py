@@ -118,6 +118,15 @@ class DatabaseManager:
                 FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
             )
         ''')
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_inventory (
+                inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                item_id TEXT NOT NULL,
+                acquired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            )
+        ''')
         self.conn.commit()
         
     def _init_tables(self):

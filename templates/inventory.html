@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2 class="text-white mb-3"><i class="bi bi-bag"></i> My Inventory</h2>
+    </div>
+</div>
+
+{% if items %}
+<div class="row g-3">
+    {% for item in items %}
+    <div class="col-md-4 col-sm-6">
+        <div class="card bg-dark border-success h-100 p-3">
+            <div class="text-center mb-3" style="font-size: 3rem;">{{ item.icon }}</div>
+            <h5 class="text-white mb-2">{{ item.name }}</h5>
+            <p class="text-white-50 small mb-2">{{ item.description }}</p>
+            <small class="text-info">Acquired: {{ item.acquired_at[:10] }}</small>
+            {% if item.type == 'avatar_skin' %}
+            <button class="btn btn-sm btn-outline-light mt-2 equip-btn" data-item-id="{{ item.id }}">
+                <i class="bi bi-check-circle"></i> Equip
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card bg-dark border-secondary p-5 text-center">
+    <h4 class="text-white mb-3">Your inventory is empty!</h4>
+    <p class="text-white-50 mb-4">Visit the shop to buy cool items and power-ups</p>
+    <a href="{{ url_for('shop') }}" class="btn btn-accent">
+        <i class="bi bi-shop"></i> Go to Shop
+    </a>
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <a href="{{ url_for('shop') }}" class="btn btn-outline-light">
+            <i class="bi bi-cart-plus"></i> Continue Shopping
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.equip-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        alert('✅ Avatar equipped!');
+    });
+});
+</script>
+{% endblock %}
