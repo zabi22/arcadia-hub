@@ -8,7 +8,7 @@
 ![Flask](https://img.shields.io/badge/Flask-3.0-green?style=for-the-badge&logo=flask)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple?style=for-the-badge&logo=bootstrap)
 ![SQLite](https://img.shields.io/badge/SQLite-3.0-orange?style=for-the-badge&logo=sqlite)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+
 
 **🔴 LIVE DEMO:** [arcadia-hub.onrender.com](https://arcadia-hub.onrender.com) *(Coming Soon!)*
 
@@ -300,13 +300,7 @@ http://localhost:5000
 
 > *"Built this gaming platform to learn full-stack development and share my passion for coding!"*
 
----
 
-## 📄 License
-
-This project is open source under the **MIT License**. Feel free to use, modify, and distribute.
-
----
 
 <div align="center">
 
