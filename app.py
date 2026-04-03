@@ -16,6 +16,7 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 DB_NAME = 'gaming_app.db'
 
@@ -42,8 +43,10 @@ SHOP_ITEMS = {
     'badge_pro': {'name': 'Pro Gamer Badge', 'description': 'Pro badge', 'price': 150, 'icon': '🏆', 'type': 'badge', 'category': 'badge'}
 }
 
+GAME_RECORDS = {}
+
 class DatabaseManager:
-    CURRENT_SCHEMA_VERSION = 3
+    CURRENT_SCHEMA_VERSION = 4
     
     def __init__(self):
         self.conn = sqlite3.connect(DB_NAME, check_same_thread=False)
@@ -72,7 +75,7 @@ class DatabaseManager:
     
     def _run_migrations(self):
         current_version = self._get_schema_version()
-        migrations = [(1, self._migration_v1), (2, self._migration_v2), (3, self._migration_v3)]
+        migrations = [(1, self._migration_v1), (2, self._migration_v2), (3, self._migration_v3), (4, self._migration_v4)]
         for version, migration_func in migrations:
             if current_version < version:
                 try:
@@ -93,12 +96,16 @@ class DatabaseManager:
         self.cursor.execute('CREATE TABLE IF NOT EXISTS user_inventory (inventory_id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, item_id TEXT NOT NULL, acquired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE)')
         self.conn.commit()
     
+    def _migration_v4(self):
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS game_records (record_id INTEGER PRIMARY KEY AUTOINCREMENT, game_key TEXT NOT NULL, user_id INTEGER NOT NULL, record_score INTEGER NOT NULL, badge_name TEXT, badge_icon TEXT, set_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(game_key), FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY(game_key) REFERENCES games(game_key) ON DELETE CASCADE)')
+        self.conn.commit()
+    
     def _init_tables(self):
         tables = [
-            ('CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, email TEXT UNIQUE NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_login DATE, streak INTEGER DEFAULT 0, coins INTEGER DEFAULT 100, total_games_played INTEGER DEFAULT 0, total_score INTEGER DEFAULT 0, avatar_config TEXT, settings_config TEXT DEFAULT \\\'{"theme": "dark", "sound": true, "notifications": true}\\\')', "users"),
+            ('CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, email TEXT UNIQUE NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_login DATE, streak INTEGER DEFAULT 0, coins INTEGER DEFAULT 100, total_games_played INTEGER DEFAULT 0, total_score INTEGER DEFAULT 0, avatar_config TEXT, settings_config TEXT DEFAULT \'{"theme": "dark", "sound": true, "notifications": true}\')', "users"),
             ('CREATE TABLE IF NOT EXISTS games (game_id INTEGER PRIMARY KEY AUTOINCREMENT, game_key TEXT UNIQUE NOT NULL, name TEXT NOT NULL, category TEXT, difficulty TEXT, play_count INTEGER DEFAULT 0, icon TEXT, color TEXT)', "games"),
             ('CREATE TABLE IF NOT EXISTS scores (score_id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, game_key TEXT NOT NULL, score INTEGER NOT NULL, play_time INTEGER DEFAULT 0, achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY(game_key) REFERENCES games(game_key) ON DELETE CASCADE)', "scores"),
-            ('CREATE TABLE IF NOT EXISTS friends (friendship_id INTEGER PRIMARY KEY AUTOINCREMENT, user_id_1 INTEGER NOT NULL, user_id_2 INTEGER NOT NULL, status TEXT DEFAULT \\\'pending\\\', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id_1, user_id_2), FOREIGN KEY(user_id_1) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY(user_id_2) REFERENCES users(user_id) ON DELETE CASCADE)', "friends"),
+            ('CREATE TABLE IF NOT EXISTS friends (friendship_id INTEGER PRIMARY KEY AUTOINCREMENT, user_id_1 INTEGER NOT NULL, user_id_2 INTEGER NOT NULL, status TEXT DEFAULT \'pending\', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id_1, user_id_2), FOREIGN KEY(user_id_1) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY(user_id_2) REFERENCES users(user_id) ON DELETE CASCADE)', "friends"),
             ('CREATE TABLE IF NOT EXISTS messages (msg_id INTEGER PRIMARY KEY AUTOINCREMENT, sender_id INTEGER NOT NULL, receiver_id INTEGER NOT NULL, content TEXT NOT NULL, is_read INTEGER DEFAULT 0, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(sender_id) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY(receiver_id) REFERENCES users(user_id) ON DELETE CASCADE)', "messages"),
         ]
         for sql, name in tables:
@@ -255,8 +262,16 @@ def login_required(f):
         if 'user_id' not in session:
             flash('Please log in to access this page', 'warning')
             return redirect(url_for('login'))
+        session.permanent = True
         return f(*args, **kwargs)
     return decorated_function
+
+@app.before_request
+def load_user():
+    if 'user_id' in session:
+        user = db.fetch_one("SELECT * FROM users WHERE user_id = ?", (session['user_id'],))
+        if user:
+            session.permanent = True
 
 @app.route('/')
 def index():
@@ -279,6 +294,7 @@ def login():
         if success:
             session['user_id'] = auth.current_user['user_id']
             session['username'] = auth.current_user['username']
+            session.permanent = True
             flash(message, 'success')
             if auth.daily_reward_msg:
                 flash(auth.daily_reward_msg, 'info')
@@ -350,7 +366,16 @@ def submit_score():
     db.execute("UPDATE users SET coins = coins + ?, total_games_played = total_games_played + 1, total_score = total_score + ? WHERE user_id = ?", (coins_earned, score, user_id))
     db.execute("UPDATE games SET play_count = play_count + 1 WHERE game_key = ?", (game_key,))
     
-    return jsonify({'success': True, 'coins_earned': coins_earned, 'message': f'Score saved! +{coins_earned} coins'})
+    record = db.fetch_one("SELECT * FROM game_records WHERE game_key = ?", (game_key,))
+    is_record = False
+    if record and score > record['record_score']:
+        db.execute("UPDATE game_records SET user_id = ?, record_score = ?, set_at = datetime('now') WHERE game_key = ?", (user_id, score, game_key))
+        is_record = True
+    elif not record:
+        db.execute("INSERT INTO game_records (game_key, user_id, record_score, badge_name, badge_icon) VALUES (?, ?, ?, ?, ?)", (game_key, user_id, score, f"Record Holder", "🏅"))
+        is_record = True
+    
+    return jsonify({'success': True, 'coins_earned': coins_earned, 'is_record': is_record, 'message': f'Score saved! +{coins_earned} coins' + (" - NEW RECORD! 🏅" if is_record else "")})
 
 @app.route('/leaderboard')
 @login_required
@@ -360,7 +385,10 @@ def leaderboard():
     game_leaderboards = {}
     for game in games_list:
         game_leaderboards[game['game_key']] = db.fetch_all("SELECT u.username, MAX(s.score) as high_score, COUNT(s.score_id) as times_played FROM scores s JOIN users u ON s.user_id = u.user_id WHERE s.game_key = ? GROUP BY s.user_id ORDER BY high_score DESC LIMIT 20", (game['game_key'],))
-    return render_template('leaderboard.html', overall=overall, game_leaderboards=game_leaderboards, games=games_list)
+    
+    records = db.fetch_all("SELECT gr.*, g.name as game_name, u.username FROM game_records gr JOIN games g ON gr.game_key = g.game_key JOIN users u ON gr.user_id = u.user_id ORDER BY gr.set_at DESC")
+    
+    return render_template('leaderboard.html', overall=overall, game_leaderboards=game_leaderboards, games=games_list, records=records)
 
 @app.route('/friends')
 @login_required
