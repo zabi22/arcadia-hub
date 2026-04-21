@@ -3,4 +3,7 @@ bcrypt>=4.0.0
 gunicorn==21.2.0
 Authlib==1.2.1
 requests>=2.31.0
-psycopg2-binary>=2.9.9
+
+# PostgreSQL support (required for Render deployment)
+# For local development with SQLite, you can skip this
+# psycopg2-binary>=2.9.9
