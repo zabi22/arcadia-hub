@@ -17,6 +17,22 @@
         <div class="card stat-card p-3">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
+                    <p class="text-white-50 mb-1">Level {{ current_level }}</p>
+                    <h3 class="text-white mb-0">{{ user.xp }} XP</h3>
+                    <div class="progress mt-2" style="height: 6px;">
+                        <div class="progress-bar bg-warning" style="width: {{ xp_progress }}%"></div>
+                    </div>
+                    <small class="text-white-50">{{ xp_current }}/{{ xp_needed }} to next</small>
+                </div>
+                <i class="bi bi-star-fill" style="font-size: 2rem; color: #ffd700;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card p-3" style="border-left-color: var(--success-color);">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
                     <p class="text-white-50 mb-1">Coins</p>
                     <h3 class="text-white mb-0">{{ user.coins }}</h3>
                 </div>
@@ -26,25 +42,13 @@
     </div>
     
     <div class="col-md-3">
-        <div class="card stat-card p-3" style="border-left-color: var(--success-color);">
+        <div class="card stat-card p-3" style="border-left-color: var(--accent-secondary);">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <p class="text-white-50 mb-1">Games Played</p>
                     <h3 class="text-white mb-0">{{ user.total_games_played }}</h3>
                 </div>
                 <i class="bi bi-joystick" style="font-size: 2rem; color: var(--success-color);"></i>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card stat-card p-3" style="border-left-color: var(--accent-secondary);">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <p class="text-white-50 mb-1">Total Score</p>
-                    <h3 class="text-white mb-0">{{ user.total_score }}</h3>
-                </div>
-                <i class="bi bi-trophy" style="font-size: 2rem; color: var(--accent-secondary);"></i>
             </div>
         </div>
     </div>
@@ -61,6 +65,58 @@
         </div>
     </div>
 </div>
+
+<!-- Daily Challenges -->
+{% if challenges %}
+<div class="row g-4 mb-4">
+    <div class="col-md-12">
+        <div class="card p-4">
+            <h4 class="text-white mb-3"><i class="bi bi-calendar-check"></i> Daily Challenges</h4>
+            <div class="row g-3">
+                {% for challenge in challenges %}
+                <div class="col-md-4 col-sm-6">
+                    <div class="card bg-dark {% if challenge.completed %}border-success{% else %}border-secondary{% endif %} p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="text-white mb-0">{{ challenge.description }}</h6>
+                            {% if challenge.completed %}
+                            <span class="badge bg-success">✓</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ challenge.current_value }}/{{ challenge.target_value }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="progress mb-2" style="height: 6px;">
+                            {% set progress = (challenge.current_value / challenge.target_value * 100)|int %}
+                            <div class="progress-bar {% if challenge.completed %}bg-success{% else %}bg-warning{% endif %}" style="width: {{ progress }}%"></div>
+                        </div>
+                        <small class="text-white-50">Reward: {{ challenge.reward_coins }} coins, {{ challenge.reward_xp }} XP</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Achievements -->
+{% if achievements %}
+<div class="row g-4 mb-4">
+    <div class="col-md-12">
+        <div class="card p-4">
+            <h4 class="text-white mb-3"><i class="bi bi-trophy-fill"></i> Recent Achievements</h4>
+            <div class="d-flex gap-3 flex-wrap">
+                {% for achievement in achievements %}
+                <div class="card bg-dark border-warning p-3 text-center" style="min-width: 150px;">
+                    <i class="bi bi-award-fill text-warning" style="font-size: 2rem;"></i>
+                    <h6 class="text-white mt-2 mb-0">{{ achievement.achievement_name }}</h6>
+                    <small class="text-white-50">{{ achievement.achieved_at[:10] }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Games Section -->
 <div class="row g-4 mb-4">

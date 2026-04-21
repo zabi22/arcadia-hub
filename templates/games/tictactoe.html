@@ -8,12 +8,27 @@
         <div class="card p-4">
             <div class="text-center mb-4">
                 <h3 class="text-white mb-2">{{ game.icon }} {{ game.name }}</h3>
-                <p class="text-white-50">Challenge a friend or test your skills!</p>
+                <p class="text-white-50">Challenge the AI opponent!</p>
+            </div>
+            
+            <!-- Difficulty Selection -->
+            <div class="mb-3">
+                <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-outline-accent diff-btn active" data-diff="easy">
+                        😊 Easy
+                    </button>
+                    <button type="button" class="btn btn-outline-accent diff-btn" data-diff="medium">
+                        🤔 Medium
+                    </button>
+                    <button type="button" class="btn btn-outline-accent diff-btn" data-diff="hard">
+                        😈 Hard
+                    </button>
+                </div>
             </div>
             
             <!-- Game Board -->
             <div class="text-center mb-4">
-                <div id="status" class="text-white fs-4 mb-3">Player X's turn</div>
+                <div id="status" class="text-white fs-4 mb-3">Your turn (X)</div>
                 <div class="d-inline-block" style="background: #1a1a2e; padding: 20px; border-radius: 15px;">
                     <div class="row g-2" id="board">
                         <div class="col-4"><button class="cell btn btn-lg" data-index="0"></button></div>
@@ -73,38 +88,55 @@
 
 {% block extra_css %}
 <style>
+.btn-outline-accent {
+    color: #00f3ff;
+    border-color: #00f3ff;
+}
+
+.btn-outline-accent:hover, .btn-outline-accent.active {
+    background: #00f3ff;
+    color: #0a0a0f;
+}
+
 .cell {
     width: 100px;
     height: 100px;
     font-size: 3rem;
     font-weight: bold;
-    background: rgba(22, 33, 62, 0.8);
+    background: rgba(15, 15, 26, 0.95);
     color: white;
-    border: 2px solid #2d3561;
+    border: 2px solid #1a1a2e;
     transition: all 0.3s;
+    border-radius: 10px;
 }
 
 .cell:hover:not(:disabled) {
-    background: rgba(0, 212, 255, 0.2);
+    background: rgba(0, 243, 255, 0.15);
+    border-color: #00f3ff;
     transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
 }
 
 .cell.x {
-    color: #00d4ff;
+    color: #00f3ff;
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
 }
 
 .cell.o {
-    color: #ffd700;
+    color: #b829dd;
+    text-shadow: 0 0 10px rgba(184, 41, 221, 0.5);
 }
 
 .cell.winner {
-    background: rgba(0, 255, 136, 0.3) !important;
+    background: rgba(5, 255, 161, 0.2) !important;
+    border-color: #05ffa1 !important;
     animation: pulse 1s infinite;
+    box-shadow: 0 0 20px rgba(5, 255, 161, 0.4);
 }
 
 @keyframes pulse {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    50% { transform: scale(1.08); }
 }
 </style>
 {% endblock %}
@@ -115,11 +147,12 @@ let currentPlayer = 'X';
 let gameActive = true;
 let gameState = ['', '', '', '', '', '', '', '', ''];
 let scores = { X: 0, O: 0, draw: 0 };
+let difficulty = 'easy';
 
 const winningConditions = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-    [0, 4, 8], [2, 4, 6]             // Diagonals
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
 ];
 
 const cells = document.querySelectorAll('.cell');
@@ -128,19 +161,109 @@ const scoreXEl = document.getElementById('scoreX');
 const scoreOEl = document.getElementById('scoreO');
 const scoreDrawEl = document.getElementById('scoreDraw');
 
+// Difficulty selection
+document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        difficulty = this.dataset.diff;
+        restartGame();
+    });
+});
+
 function handleCellClick(e) {
     const clickedCell = e.target;
     const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
     
-    if (gameState[clickedCellIndex] !== '' || !gameActive) {
+    if (gameState[clickedCellIndex] !== '' || !gameActive || currentPlayer !== 'X') {
         return;
     }
     
-    gameState[clickedCellIndex] = currentPlayer;
-    clickedCell.textContent = currentPlayer;
-    clickedCell.classList.add(currentPlayer.toLowerCase());
-    
+    makeMove(clickedCellIndex, 'X');
     checkResult();
+    
+    if (gameActive) {
+        currentPlayer = 'O';
+        statusDisplay.textContent = "Computer thinking...";
+        setTimeout(computerMove, 500);
+    }
+}
+
+function makeMove(index, player) {
+    gameState[index] = player;
+    cells[index].textContent = player;
+    cells[index].classList.add(player.toLowerCase());
+}
+
+function computerMove() {
+    if (!gameActive) return;
+    
+    let move;
+    
+    if (difficulty === 'easy') {
+        move = getRandomMove();
+    } else if (difficulty === 'medium') {
+        move = Math.random() < 0.6 ? getBestMove() : getRandomMove();
+    } else {
+        move = getBestMove();
+    }
+    
+    if (move !== undefined) {
+        makeMove(move, 'O');
+        checkResult();
+        
+        if (gameActive) {
+            currentPlayer = 'X';
+            statusDisplay.textContent = "Your turn (X)";
+        }
+    }
+}
+
+function getRandomMove() {
+    const available = gameState.map((cell, idx) => cell === '' ? idx : null).filter(val => val !== null);
+    return available[Math.floor(Math.random() * available.length)];
+}
+
+function getBestMove() {
+    // Check if computer can win
+    for (let i = 0; i < 9; i++) {
+        if (gameState[i] === '') {
+            gameState[i] = 'O';
+            if (checkWin('O')) {
+                gameState[i] = '';
+                return i;
+            }
+            gameState[i] = '';
+        }
+    }
+    
+    // Block player from winning
+    for (let i = 0; i < 9; i++) {
+        if (gameState[i] === '') {
+            gameState[i] = 'X';
+            if (checkWin('X')) {
+                gameState[i] = '';
+                return i;
+            }
+            gameState[i] = '';
+        }
+    }
+    
+    // Take center
+    if (gameState[4] === '') return 4;
+    
+    // Take corners
+    const corners = [0, 2, 6, 8].filter(i => gameState[i] === '');
+    if (corners.length > 0) return corners[Math.floor(Math.random() * corners.length)];
+    
+    // Take any available
+    return getRandomMove();
+}
+
+function checkWin(player) {
+    return winningConditions.some(condition => {
+        return condition.every(index => gameState[index] === player);
+    });
 }
 
 function checkResult() {
@@ -157,18 +280,17 @@ function checkResult() {
     }
     
     if (roundWon) {
-        statusDisplay.textContent = `Player ${currentPlayer} wins! 🎉`;
+        const winner = currentPlayer;
+        statusDisplay.textContent = winner === 'X' ? 'You win! 🎉' : 'Computer wins! 💻';
         gameActive = false;
-        scores[currentPlayer]++;
+        scores[winner]++;
         updateScores();
         
-        // Highlight winning cells
         winningLine.forEach(index => {
             cells[index].classList.add('winner');
         });
         
-        // Save score after delay
-        setTimeout(saveScore, 1000);
+        setTimeout(() => saveScore(winner === 'X' ? 'win' : 'loss'), 1000);
         return;
     }
     
@@ -177,12 +299,9 @@ function checkResult() {
         gameActive = false;
         scores.draw++;
         updateScores();
-        setTimeout(saveScore, 1000);
+        setTimeout(() => saveScore('draw'), 1000);
         return;
     }
-    
-    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-    statusDisplay.textContent = `Player ${currentPlayer}'s turn`;
 }
 
 function updateScores() {
@@ -191,17 +310,18 @@ function updateScores() {
     scoreDrawEl.textContent = scores.draw;
 }
 
-function saveScore() {
-    const winner = scores.X > scores.O ? 'X' : (scores.O > scores.X ? 'O' : 'draw');
-    const score = winner === 'draw' ? 5 : (winner === currentPlayer ? 10 : 5);
+function saveScore(result) {
+    const diffMultiplier = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 1.5 : 2;
+    const baseScore = result === 'win' ? 50 : result === 'draw' ? 20 : 5;
+    const score = Math.floor(baseScore * diffMultiplier);
     
     fetch('/api/score', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             game_key: '{{ game.game_key }}',
-            score: score * Math.max(scores.X, scores.O),
-            play_time: 60
+            score: score,
+            play_time: 30
         })
     });
 }
@@ -210,7 +330,7 @@ function restartGame() {
     gameActive = true;
     currentPlayer = 'X';
     gameState = ['', '', '', '', '', '', '', '', ''];
-    statusDisplay.textContent = `Player X's turn`;
+    statusDisplay.textContent = 'Your turn (X)';
     
     cells.forEach(cell => {
         cell.textContent = '';
@@ -224,7 +344,6 @@ function resetScores() {
     restartGame();
 }
 
-// Event listeners
 cells.forEach(cell => cell.addEventListener('click', handleCellClick));
 document.getElementById('restartBtn').addEventListener('click', restartGame);
 document.getElementById('resetScoreBtn').addEventListener('click', resetScores);

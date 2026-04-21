@@ -1,95 +1,342 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="{{ settings.theme if settings else 'dark' }}">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Arcadia Hub{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         :root {
-            --accent-color: #00d4ff;
-            --accent-secondary: #7b2cbf;
-            --success-color: #00ff88;
-            --bg-gradient-start: #667eea;
-            --bg-gradient-end: #764ba2;
+            --neon-blue: #00f3ff;
+            --neon-purple: #b829dd;
+            --neon-pink: #ff2a6d;
+            --neon-green: #05ffa1;
+            --dark-bg: #0a0a0f;
+            --darker-bg: #050508;
+            --card-bg: #0f0f1a;
+            --card-border: #1a1a2e;
         }
         
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            background: var(--darker-bg);
+            font-family: 'Rajdhani', sans-serif;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(184, 41, 221, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 243, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(255, 42, 109, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
         }
         
         .navbar {
-            backdrop-filter: blur(10px);
-            background: rgba(15, 15, 26, 0.9) !important;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background: rgba(10, 10, 15, 0.95) !important;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 243, 255, 0.2);
+            box-shadow: 0 4px 30px rgba(0, 243, 255, 0.1);
+            padding: 1rem 0;
+        }
+        
+        .navbar-brand {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 243, 255, 0.5);
+            letter-spacing: 2px;
+        }
+        
+        .navbar-brand:hover {
+            filter: brightness(1.2);
+        }
+        
+        .nav-link {
+            font-weight: 600;
+            font-size: 1.05rem;
+            letter-spacing: 1px;
+            color: #b0b0b0 !important;
+            transition: all 0.3s ease;
+            position: relative;
+            padding: 0.5rem 1rem !important;
+        }
+        
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover {
+            color: var(--neon-blue) !important;
+        }
+        
+        .nav-link:hover::before {
+            width: 80%;
         }
         
         .card {
-            backdrop-filter: blur(10px);
-            background: rgba(22, 33, 62, 0.8) !important;
-            border: 1px solid rgba(45, 53, 97, 0.5);
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            background: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-blue), var(--neon-purple), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .card:hover::before {
+            opacity: 1;
+        }
+        
+        .card:hover {
+            border-color: rgba(0, 243, 255, 0.3) !important;
+            box-shadow: 0 12px 48px rgba(0, 243, 255, 0.15);
+            transform: translateY(-2px);
         }
         
         .btn-accent {
-            background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
             border: none;
             color: white;
-            padding: 10px 25px;
+            padding: 12px 32px;
             border-radius: 8px;
-            font-weight: 600;
-            transition: transform 0.2s;
+            font-weight: 700;
+            font-size: 1.05rem;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+        }
+        
+        .btn-accent::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn-accent:hover::before {
+            width: 300px;
+            height: 300px;
         }
         
         .btn-accent:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 243, 255, 0.4);
             color: white;
+        }
+        
+        .btn-accent:active {
+            transform: translateY(-1px);
         }
         
         .game-card {
-            transition: transform 0.3s, box-shadow 0.3s;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             cursor: pointer;
+            position: relative;
+        }
+        
+        .game-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            padding: 2px;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
         
         .game-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 24px rgba(0, 212, 255, 0.3);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 16px 48px rgba(0, 243, 255, 0.3);
+        }
+        
+        .game-card:hover::after {
+            opacity: 1;
         }
         
         .stat-card {
-            border-left: 4px solid var(--accent-color);
+            border-left: 3px solid var(--neon-blue);
+            background: linear-gradient(135deg, rgba(15, 15, 26, 0.9), rgba(26, 26, 46, 0.9)) !important;
         }
         
         .leaderboard-item:nth-child(1) {
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 193, 7, 0.1));
-            border-left: 4px solid #ffd700;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 193, 7, 0.05));
+            border-left: 3px solid #ffd700;
         }
         
         .leaderboard-item:nth-child(2) {
-            background: linear-gradient(135deg, rgba(192, 192, 192, 0.2), rgba(169, 169, 169, 0.1));
-            border-left: 4px solid #c0c0c0;
+            background: linear-gradient(135deg, rgba(192, 192, 192, 0.15), rgba(169, 169, 169, 0.05));
+            border-left: 3px solid #c0c0c0;
         }
         
         .leaderboard-item:nth-child(3) {
-            background: linear-gradient(135deg, rgba(205, 127, 50, 0.2), rgba(210, 105, 30, 0.1));
-            border-left: 4px solid #cd7f32;
+            background: linear-gradient(135deg, rgba(205, 127, 50, 0.15), rgba(210, 105, 30, 0.05));
+            border-left: 3px solid #cd7f32;
         }
         
-        .avatar-placeholder {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            font-weight: bold;
-            color: white;
-            margin: 0 auto;
+        .text-accent {
+            color: var(--neon-blue) !important;
+        }
+        
+        .text-glow {
+            text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+        }
+        
+        .progress {
+            background: rgba(26, 26, 46, 0.8);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+        
+        .badge {
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 0.4em 0.8em;
+        }
+        
+        .alert {
+            border-radius: 10px;
+            border: 1px solid;
+        }
+        
+        .alert-success {
+            background: rgba(5, 255, 161, 0.1);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+        
+        .alert-info {
+            background: rgba(0, 243, 255, 0.1);
+            border-color: var(--neon-blue);
+            color: var(--neon-blue);
+        }
+        
+        .alert-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: #ffc107;
+            color: #ffc107;
+        }
+        
+        .alert-danger {
+            background: rgba(255, 42, 109, 0.1);
+            border-color: var(--neon-pink);
+            color: var(--neon-pink);
+        }
+        
+        .dropdown-menu {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+        }
+        
+        .dropdown-item {
+            color: #e0e0e0;
+            transition: all 0.2s ease;
+        }
+        
+        .dropdown-item:hover {
+            background: linear-gradient(90deg, rgba(0, 243, 255, 0.1), transparent);
+            color: var(--neon-blue);
+            padding-left: 1.5rem;
+        }
+        
+        footer {
+            background: var(--dark-bg);
+            border-top: 1px solid var(--card-border);
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(0, 243, 255, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(0, 243, 255, 0.8), 0 0 30px rgba(0, 243, 255, 0.6); }
+        }
+        
+        .pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        
+        ::selection {
+            background: var(--neon-blue);
+            color: var(--darker-bg);
+        }
+        
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--neon-blue), var(--neon-purple));
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, var(--neon-purple), var(--neon-blue));
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -97,8 +344,8 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">
-                <i class="bi bi-controller"></i> Arcadia Hub
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="bi bi-controller"></i> ARCADIA HUB
             </a>
             
             {% if session.user_id %}
@@ -148,7 +395,7 @@
                             <li><a class="dropdown-item" href="{{ url_for('settings') }}">
                                 <i class="bi bi-gear"></i> Settings
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li><hr class="dropdown-divider" style="border-color: var(--card-border);"></li>
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">
                                 <i class="bi bi-box-arrow-right"></i> Logout
                             </a></li>
@@ -166,6 +413,7 @@
                 {% if messages %}
                     {% for category, message in messages %}
                         <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            <i class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-circle' if category == 'danger' else 'info-circle' }} me-2"></i>
                             {{ message }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
@@ -179,8 +427,8 @@
     
     <footer class="py-4 mt-auto">
         <div class="container text-center">
-            <p class="text-white-50 mb-0">
-                &copy; 2024 Arcadia Hub. Built with <i class="bi bi-heart-fill text-danger"></i> for gamers.
+            <p class="mb-0" style="color: #666;">
+                &copy; 2024 Arcadia Hub. Crafted with <i class="bi bi-heart-fill" style="color: var(--neon-pink);"></i> for gamers worldwide.
             </p>
         </div>
     </footer>

@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.name }} - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="text-white mb-0">{{ game.icon }} {{ game.name }}</h3>
+                <a href="{{ url_for('games') }}" class="btn btn-sm btn-outline-light">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+            
+            <div class="text-center mb-3 position-relative">
+                <canvas id="gameCanvas" width="600" height="800" 
+                        style="background: #1a1a2e; border-radius: 10px; max-width: 100%; border: 2px solid #f1c40f; display: block;"></canvas>
+                
+                <div id="gameOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="background: rgba(5,5,8,0.95); border-radius: 10px; z-index: 10;">
+                    <h2 class="text-white mb-3" id="overlayTitle" style="font-family: 'Orbitron', sans-serif; text-shadow: 0 0 20px rgba(241,196,15,0.8);">Tower Stack</h2>
+                    <p class="text-white-50 mb-4" id="overlaySubtitle">Stack blocks perfectly!</p>
+                    <button id="startBtn" class="btn btn-accent btn-lg pulse-glow">
+                        <i class="bi bi-play-fill"></i> Start Game
+                    </button>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Score</small>
+                        <h4 class="text-white mb-0" id="currentScore">0</h4>
+                    </div>
+                </div>
+                <div class="col-md-4 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">High Score</small>
+                        <h4 class="text-warning mb-0" id="highScore">0</h4>
+                    </div>
+                </div>
+                <div class="col-md-4 col-12 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Blocks</small>
+                        <h4 class="text-info mb-0" id="blocks">0</h4>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong><i class="bi bi-layers"></i> How to Play:</strong> Press SPACE or click to drop the block. Align it perfectly!
+                <br><small class="text-white-50">💡 Tip: Perfect drops give bonus points. Don't miss!</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="gameOverModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Game Over!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-white">
+                <div class="text-center mb-4">
+                    <h2 class="text-accent" id="finalScore">0</h2>
+                    <p class="text-white-50" id="gameOverMessage"></p>
+                </div>
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <small class="text-white-50">Blocks</small>
+                        <h5 id="finalBlocks">0</h5>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-white-50">Perfect</small>
+                        <h5 id="finalPerfect">0</h5>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-white-50">Coins</small>
+                        <h5 class="text-warning" id="finalCoins">0</h5>
+                    </div>
+                </div>
+                <div id="rewardsBreakdown" class="small text-white-50 mb-3"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-accent" id="playAgainBtn">
+                    <i class="bi bi-arrow-clockwise"></i> Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('startBtn');
+const overlay = document.getElementById('gameOverlay');
+
+let gameRunning = false;
+let score = 0;
+let highScore = parseInt(localStorage.getItem('towerHighScore')) || 0;
+let blocks = [];
+let currentBlock = null;
+let blockCount = 0;
+let perfectCount = 0;
+let startTime = 0;
+let cameraY = 0;
+
+document.getElementById('highScore').textContent = highScore;
+
+const blockHeight = 30;
+const colors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#e67e22'];
+
+function initGame() {
+    blocks = [];
+    blockCount = 0;
+    perfectCount = 0;
+    cameraY = 0;
+    
+    const baseBlock = {
+        x: canvas.width / 2 - 100,
+        y: canvas.height - 50,
+        width: 200,
+        height: blockHeight,
+        color: colors[0]
+    };
+    
+    blocks.push(baseBlock);
+    
+    spawnNextBlock();
+}
+
+function spawnNextBlock() {
+    const lastBlock = blocks[blocks.length - 1];
+    const speed = 3 + (blockCount * 0.2);
+    const direction = blockCount % 2 === 0 ? 1 : -1;
+    
+    currentBlock = {
+        x: direction === 1 ? -lastBlock.width : canvas.width,
+        y: lastBlock.y - blockHeight - cameraY,
+        width: lastBlock.width,
+        height: blockHeight,
+        dx: speed * direction,
+        color: colors[blockCount % colors.length]
+    };
+}
+
+function dropBlock() {
+    if (!gameRunning || !currentBlock) return;
+    
+    const lastBlock = blocks[blocks.length - 1];
+    
+    const overlapStart = Math.max(currentBlock.x, lastBlock.x);
+    const overlapEnd = Math.min(currentBlock.x + currentBlock.width, lastBlock.x + lastBlock.width);
+    const overlapWidth = overlapEnd - overlapStart;
+    
+    if (overlapWidth <= 0) {
+        gameOver();
+        return;
+    }
+    
+    const isPerfect = Math.abs(currentBlock.x - lastBlock.x) < 5;
+    
+    if (isPerfect) {
+        perfectCount++;
+        score += 50 + (perfectCount * 10);
+    } else {
+        score += overlapWidth / 2;
+    }
+    
+    blockCount++;
+    
+    const newBlock = {
+        x: overlapStart,
+        y: lastBlock.y - blockHeight,
+        width: overlapWidth,
+        height: blockHeight,
+        color: currentBlock.color
+    };
+    
+    blocks.push(newBlock);
+    
+    document.getElementById('currentScore').textContent = Math.floor(score);
+    document.getElementById('blocks').textContent = blockCount;
+    
+    if (blocks.length > 10) {
+        cameraY += blockHeight;
+    }
+    
+    spawnNextBlock();
+}
+
+function startGame() {
+    if (gameRunning) return;
+    
+    score = 0;
+    
+    initGame();
+    
+    document.getElementById('currentScore').textContent = '0';
+    document.getElementById('blocks').textContent = '0';
+    
+    gameRunning = true;
+    startTime = Date.now();
+    
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+    setTimeout(() => {
+        overlay.style.display = 'none';
+    }, 300);
+    
+    startBtn.disabled = true;
+    
+    gameLoop();
+}
+
+function gameLoop() {
+    if (!gameRunning) return;
+    
+    update();
+    draw();
+    
+    requestAnimationFrame(gameLoop);
+}
+
+function update() {
+    if (currentBlock) {
+        currentBlock.x += currentBlock.dx;
+        
+        if (currentBlock.x + currentBlock.width > canvas.width + 50 || currentBlock.x < -50) {
+            currentBlock.dx = -currentBlock.dx;
+        }
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    blocks.forEach(block => {
+        ctx.fillStyle = block.color;
+        ctx.fillRect(block.x, block.y - cameraY, block.width, block.height);
+        
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(block.x, block.y - cameraY, block.width, block.height);
+    });
+    
+    if (currentBlock) {
+        ctx.fillStyle = currentBlock.color;
+        ctx.globalAlpha = 0.8;
+        ctx.fillRect(currentBlock.x, currentBlock.y, currentBlock.width, currentBlock.height);
+        ctx.globalAlpha = 1.0;
+        
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(currentBlock.x, currentBlock.y, currentBlock.width, currentBlock.height);
+    }
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Click or SPACE to drop', canvas.width / 2, 50);
+}
+
+async function gameOver() {
+    gameRunning = false;
+    currentBlock = null;
+    
+    score = Math.floor(score);
+    
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('towerHighScore', highScore);
+        document.getElementById('highScore').textContent = highScore;
+    }
+    
+    const playTime = Math.floor((Date.now() - startTime) / 1000);
+    
+    try {
+        const response = await fetch('/api/score', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                game_key: 'towerstack',
+                score: score,
+                play_time: playTime
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalBlocks').textContent = blockCount;
+            document.getElementById('finalPerfect').textContent = perfectCount;
+            document.getElementById('finalCoins').textContent = '+' + data.coins_earned;
+            document.getElementById('gameOverMessage').textContent = data.message;
+            
+            let breakdown = `<div>Base: ${data.base_coins} coins`;
+            if (data.streak_bonus > 0) breakdown += ` | Streak: +${data.streak_bonus}`;
+            if (data.multiplier > 1) breakdown += ` | Multiplier: ${data.multiplier}x`;
+            breakdown += `</div><div class="mt-1 text-success">+${data.xp_earned} XP earned!</div>`;
+            
+            if (data.level_up) {
+                breakdown += `<div class="mt-1 text-warning fw-bold">🎉 LEVEL UP! Now level ${data.new_level}!</div>`;
+            }
+            
+            document.getElementById('rewardsBreakdown').innerHTML = breakdown;
+            
+            const modal = new bootstrap.Modal(document.getElementById('gameOverModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Failed to submit score:', error);
+    }
+    
+    startBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Play Again';
+    startBtn.disabled = false;
+    overlay.style.display = 'flex';
+    document.getElementById('overlayTitle').textContent = 'Game Over!';
+    document.getElementById('overlaySubtitle').textContent = `Score: ${score} | Blocks: ${blockCount}`;
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+        e.preventDefault();
+        if (gameRunning) {
+            dropBlock();
+        } else if (!startBtn.disabled) {
+            startGame();
+        }
+    }
+});
+
+canvas.addEventListener('click', () => {
+    if (gameRunning) {
+        dropBlock();
+    }
+});
+
+startBtn.addEventListener('click', startGame);
+
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('gameOverModal'));
+    if (modal) modal.hide();
+    setTimeout(() => {
+        startBtn.click();
+    }, 300);
+});
+
+initGame();
+draw();
+</script>
+{% endblock %}

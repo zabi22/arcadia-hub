@@ -18,6 +18,7 @@
                 <tr>
                     <th class="text-white">#</th>
                     <th class="text-white">Player</th>
+                    <th class="text-white">Rank</th>
                     <th class="text-white">Total Score</th>
                     <th class="text-white">Games Played</th>
                     <th class="text-white">Coins</th>
@@ -25,11 +26,17 @@
             </thead>
             <tbody>
                 {% for player in overall %}
+                {% set tier = get_rank_tier(player.total_score) %}
                 <tr class="{% if loop.index <= 3 %}leaderboard-item{% endif %}">
                     <td class="text-white fs-5">
                         {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}#{{ loop.index }}{% endif %}
                     </td>
                     <td class="text-white fw-bold">{{ player.username }}</td>
+                    <td>
+                        <span style="color: {{ tier.color }};">
+                            {{ tier.icon }} {{ tier.name }}
+                        </span>
+                    </td>
                     <td class="text-white">{{ player.total_score }}</td>
                     <td class="text-white">{{ player.games_played }}</td>
                     <td class="text-warning">{{ player.coins }}</td>
@@ -39,6 +46,35 @@
         </table>
     </div>
 </div>
+
+<!-- Recent Best Runs (Last 7 Days) -->
+{% if recent_best %}
+<div class="card p-4 mb-4">
+    <h4 class="text-white mb-3"><i class="bi bi-clock-history"></i> Recent Best Runs (Last 7 Days)</h4>
+    <div class="table-responsive">
+        <table class="table table-dark table-hover">
+            <thead>
+                <tr>
+                    <th class="text-white">Game</th>
+                    <th class="text-white">Player</th>
+                    <th class="text-white">Score</th>
+                    <th class="text-white">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in recent_best %}
+                <tr>
+                    <td class="text-white">{{ run.game_name }}</td>
+                    <td class="text-white fw-bold">{{ run.username }}</td>
+                    <td class="text-warning">{{ run.score }}</td>
+                    <td class="text-white-50">{{ run.achieved_at[:10] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 
 <!-- Game-specific Leaderboards -->
 <div class="row g-4">

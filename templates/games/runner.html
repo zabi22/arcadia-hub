@@ -1,0 +1,525 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.name }} - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="text-white mb-0">{{ game.icon }} {{ game.name }}</h3>
+                <a href="{{ url_for('games') }}" class="btn btn-sm btn-outline-light">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+            
+            <div class="text-center mb-3 position-relative">
+                <canvas id="gameCanvas" width="800" height="400" 
+                        style="background: #1a1a2e; border-radius: 10px; max-width: 100%; border: 2px solid #ff6b35; display: block;"></canvas>
+                
+                <div id="gameOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="background: rgba(5,5,8,0.95); border-radius: 10px; z-index: 10;">
+                    <h2 class="text-white mb-3" id="overlayTitle" style="font-family: 'Orbitron', sans-serif; text-shadow: 0 0 20px rgba(255,107,53,0.8);">Endless Runner</h2>
+                    <p class="text-white-50 mb-4" id="overlaySubtitle">Run, Jump, Survive!</p>
+                    <button id="startBtn" class="btn btn-accent btn-lg pulse-glow">
+                        <i class="bi bi-play-fill"></i> Start Game
+                    </button>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Score</small>
+                        <h4 class="text-white mb-0" id="currentScore">0</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">High Score</small>
+                        <h4 class="text-warning mb-0" id="highScore">0</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Distance</small>
+                        <h4 class="text-info mb-0" id="distance">0m</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Speed</small>
+                        <h4 class="text-danger mb-0" id="speedLevel">1x</h4>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong><i class="bi bi-keyboard"></i> Controls:</strong> SPACE or UP to jump, DOWN to slide. Avoid obstacles and collect coins!
+                <br><small class="text-white-50">💡 Tip: Speed increases over time. Double jump for extra height!</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="gameOverModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Game Over!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-white">
+                <div class="text-center mb-4">
+                    <h2 class="text-accent" id="finalScore">0</h2>
+                    <p class="text-white-50" id="gameOverMessage"></p>
+                </div>
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <small class="text-white-50">Distance</small>
+                        <h5 id="finalDistance">0m</h5>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-white-50">Time</small>
+                        <h5 id="finalTime">0s</h5>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-white-50">Coins</small>
+                        <h5 class="text-warning" id="finalCoins">0</h5>
+                    </div>
+                </div>
+                <div id="rewardsBreakdown" class="small text-white-50 mb-3"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-accent" id="playAgainBtn">
+                    <i class="bi bi-arrow-clockwise"></i> Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+#gameCanvas {
+    box-shadow: 0 0 30px rgba(255, 107, 53, 0.4);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('startBtn');
+const overlay = document.getElementById('gameOverlay');
+const overlayTitle = document.getElementById('overlayTitle');
+const overlaySubtitle = document.getElementById('overlaySubtitle');
+
+let gameRunning = false;
+let score = 0;
+let highScore = parseInt(localStorage.getItem('runnerHighScore')) || 0;
+let distance = 0;
+let startTime = 0;
+let gameSpeed = 5;
+let baseSpeed = 5;
+
+document.getElementById('highScore').textContent = highScore;
+
+let player = {
+    x: 100,
+    y: 300,
+    width: 40,
+    height: 60,
+    velocityY: 0,
+    gravity: 0.6,
+    jumpPower: -12,
+    isJumping: false,
+    jumpCount: 0,
+    maxJumps: 2,
+    isSliding: false,
+    slideTimer: 0
+};
+
+let obstacles = [];
+let coins = [];
+let particles = [];
+let groundY = 360;
+let frames = 0;
+
+function spawnObstacle() {
+    const types = ['box', 'spike', 'bird'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    
+    let obs = { x: canvas.width, type: type };
+    
+    if (type === 'box') {
+        obs.y = groundY - 40;
+        obs.width = 40;
+        obs.height = 40;
+    } else if (type === 'spike') {
+        obs.y = groundY - 30;
+        obs.width = 30;
+        obs.height = 30;
+    } else if (type === 'bird') {
+        obs.y = groundY - 80 - Math.random() * 60;
+        obs.width = 40;
+        obs.height = 30;
+    }
+    
+    obstacles.push(obs);
+}
+
+function spawnCoin() {
+    const y = groundY - 40 - Math.random() * 100;
+    coins.push({
+        x: canvas.width,
+        y: y,
+        width: 20,
+        height: 20,
+        collected: false
+    });
+}
+
+function createParticle(x, y, color, count = 5) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 1.0,
+            color: color,
+            size: Math.random() * 4 + 2
+        });
+    }
+}
+
+function updateParticles() {
+    particles = particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.02;
+        p.size *= 0.98;
+        return p.life > 0;
+    });
+}
+
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.globalAlpha = 1.0;
+}
+
+function jump() {
+    if (player.jumpCount < player.maxJumps) {
+        player.velocityY = player.jumpPower;
+        player.isJumping = true;
+        player.jumpCount++;
+        createParticle(player.x + player.width/2, player.y + player.height, '#ff6b35', 8);
+    }
+}
+
+function startGame() {
+    if (gameRunning) return;
+    
+    player.y = 300;
+    player.velocityY = 0;
+    player.isJumping = false;
+    player.jumpCount = 0;
+    player.isSliding = false;
+    
+    obstacles = [];
+    coins = [];
+    particles = [];
+    score = 0;
+    distance = 0;
+    frames = 0;
+    gameSpeed = baseSpeed;
+    
+    document.getElementById('currentScore').textContent = '0';
+    document.getElementById('distance').textContent = '0m';
+    document.getElementById('speedLevel').textContent = '1x';
+    
+    gameRunning = true;
+    startTime = Date.now();
+    
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+    setTimeout(() => {
+        overlay.style.display = 'none';
+    }, 300);
+    
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<i class="bi bi-play-fill"></i> Playing...';
+    
+    gameLoop();
+}
+
+function gameLoop() {
+    if (!gameRunning) return;
+    
+    update();
+    draw();
+    
+    requestAnimationFrame(gameLoop);
+}
+
+function update() {
+    frames++;
+    distance += gameSpeed * 0.1;
+    
+    player.velocityY += player.gravity;
+    player.y += player.velocityY;
+    
+    if (player.y >= groundY - player.height) {
+        player.y = groundY - player.height;
+        player.velocityY = 0;
+        player.isJumping = false;
+        player.jumpCount = 0;
+    }
+    
+    if (player.isSliding) {
+        player.slideTimer--;
+        if (player.slideTimer <= 0) {
+            player.isSliding = false;
+            player.height = 60;
+        }
+    }
+    
+    if (frames % Math.max(40, 100 - Math.floor(frames / 100)) === 0) {
+        spawnObstacle();
+    }
+    
+    if (frames % 60 === 0) {
+        spawnCoin();
+    }
+    
+    gameSpeed = baseSpeed + (distance / 500);
+    document.getElementById('speedLevel').textContent = (gameSpeed / baseSpeed).toFixed(1) + 'x';
+    
+    obstacles.forEach(obs => {
+        obs.x -= gameSpeed;
+        
+        const playerBox = {
+            x: player.x,
+            y: player.y,
+            width: player.width,
+            height: player.height
+        };
+        
+        if (playerBox.x < obs.x + obs.width &&
+            playerBox.x + playerBox.width > obs.x &&
+            playerBox.y < obs.y + obs.height &&
+            playerBox.y + playerBox.height > obs.y) {
+            gameOver();
+        }
+    });
+    
+    obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
+    
+    coins.forEach(coin => {
+        coin.x -= gameSpeed;
+        
+        if (!coin.collected) {
+            const playerBox = {
+                x: player.x,
+                y: player.y,
+                width: player.width,
+                height: player.height
+            };
+            
+            if (playerBox.x < coin.x + coin.width &&
+                playerBox.x + playerBox.width > coin.x &&
+                playerBox.y < coin.y + coin.height &&
+                playerBox.y + playerBox.height > coin.y) {
+                coin.collected = true;
+                score += 50;
+                createParticle(coin.x + coin.width/2, coin.y + coin.height/2, '#ffd700', 10);
+            }
+        }
+    });
+    
+    coins = coins.filter(coin => coin.x + coin.width > 0 && !coin.collected);
+    
+    score += 0.1;
+    
+    document.getElementById('currentScore').textContent = Math.floor(score);
+    document.getElementById('distance').textContent = Math.floor(distance) + 'm';
+    
+    updateParticles();
+}
+
+function draw() {
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    for (let i = 0; i < canvas.width; i += 40) {
+        const offset = (frames * gameSpeed) % 40;
+        ctx.fillStyle = '#252540';
+        ctx.fillRect(i - offset, groundY, 40, canvas.height - groundY);
+    }
+    
+    ctx.fillStyle = '#ff6b35';
+    ctx.fillRect(0, groundY - 2, canvas.width, 2);
+    
+    ctx.fillStyle = '#ff6b35';
+    if (player.isSliding) {
+        ctx.fillRect(player.x, player.y + 40, player.width, 20);
+    } else {
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+        
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(player.x + 25, player.y + 10, 8, 8);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(player.x + 28, player.y + 12, 4, 4);
+    }
+    
+    obstacles.forEach(obs => {
+        if (obs.type === 'box') {
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+        } else if (obs.type === 'spike') {
+            ctx.fillStyle = '#f39c12';
+            ctx.beginPath();
+            ctx.moveTo(obs.x, obs.y + obs.height);
+            ctx.lineTo(obs.x + obs.width/2, obs.y);
+            ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
+            ctx.closePath();
+            ctx.fill();
+        } else if (obs.type === 'bird') {
+            ctx.fillStyle = '#9b59b6';
+            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            const wingY = Math.sin(frames * 0.2) * 10;
+            ctx.fillRect(obs.x - 10, obs.y + wingY, 10, 15);
+            ctx.fillRect(obs.x + obs.width, obs.y - wingY, 10, 15);
+        }
+    });
+    
+    coins.forEach(coin => {
+        if (!coin.collected) {
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(coin.x + coin.width/2, coin.y + coin.height/2, coin.width/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('$', coin.x + coin.width/2, coin.y + coin.height/2 + 4);
+        }
+    });
+    
+    drawParticles();
+}
+
+async function gameOver() {
+    gameRunning = false;
+    
+    if (score > highScore) {
+        highScore = Math.floor(score);
+        localStorage.setItem('runnerHighScore', highScore);
+        document.getElementById('highScore').textContent = highScore;
+    }
+    
+    const playTime = Math.floor((Date.now() - startTime) / 1000);
+    
+    try {
+        const response = await fetch('/api/score', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                game_key: 'runner',
+                score: Math.floor(score),
+                play_time: playTime
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('finalScore').textContent = Math.floor(score);
+            document.getElementById('finalDistance').textContent = Math.floor(distance) + 'm';
+            document.getElementById('finalTime').textContent = playTime + 's';
+            document.getElementById('finalCoins').textContent = '+' + data.coins_earned;
+            document.getElementById('gameOverMessage').textContent = data.message;
+            
+            let breakdown = `<div>Base: ${data.base_coins} coins`;
+            if (data.streak_bonus > 0) breakdown += ` | Streak: +${data.streak_bonus}`;
+            if (data.multiplier > 1) breakdown += ` | Multiplier: ${data.multiplier}x`;
+            breakdown += `</div><div class="mt-1 text-success">+${data.xp_earned} XP earned!</div>`;
+            
+            if (data.level_up) {
+                breakdown += `<div class="mt-1 text-warning fw-bold">🎉 LEVEL UP! Now level ${data.new_level}!</div>`;
+            }
+            
+            document.getElementById('rewardsBreakdown').innerHTML = breakdown;
+            
+            const modal = new bootstrap.Modal(document.getElementById('gameOverModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Failed to submit score:', error);
+    }
+    
+    startBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Play Again';
+    startBtn.disabled = false;
+    overlay.style.display = 'flex';
+    overlayTitle.textContent = 'Game Over!';
+    overlaySubtitle.textContent = `Score: ${Math.floor(score)} | Distance: ${Math.floor(distance)}m`;
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        if (gameRunning) {
+            jump();
+        } else if (!startBtn.disabled) {
+            startGame();
+        }
+    }
+    
+    if (e.code === 'ArrowDown' && gameRunning) {
+        e.preventDefault();
+        if (!player.isSliding && !player.isJumping) {
+            player.isSliding = true;
+            player.slideTimer = 40;
+            player.height = 20;
+        }
+    }
+});
+
+canvas.addEventListener('click', () => {
+    if (gameRunning) {
+        jump();
+    }
+});
+
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (gameRunning) {
+        jump();
+    }
+});
+
+startBtn.addEventListener('click', startGame);
+
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('gameOverModal'));
+    if (modal) modal.hide();
+    setTimeout(() => {
+        startBtn.click();
+    }, 300);
+});
+
+draw();
+</script>
+{% endblock %}

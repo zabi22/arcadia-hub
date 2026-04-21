@@ -8,7 +8,20 @@
         <div class="card p-4">
             <div class="text-center mb-4">
                 <h3 class="text-white mb-2">{{ game.icon }} {{ game.name }}</h3>
-                <p class="text-white-50">Guess the 5-letter word!</p>
+                <p class="text-white-50">Guess the word!</p>
+                
+                <!-- Word Length Selection -->
+                <div class="mb-3">
+                    <label class="text-white mb-2">Choose word length:</label>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-accent length-btn" data-length="3">3 Letters</button>
+                        <button type="button" class="btn btn-outline-accent length-btn" data-length="4">4 Letters</button>
+                        <button type="button" class="btn btn-outline-accent length-btn active" data-length="5">5 Letters</button>
+                        <button type="button" class="btn btn-outline-accent length-btn" data-length="6">6 Letters</button>
+                        <button type="button" class="btn btn-outline-accent length-btn" data-length="7">7 Letters</button>
+                        <button type="button" class="btn btn-outline-accent length-btn" data-length="8">8 Letters</button>
+                    </div>
+                </div>
             </div>
             
             <!-- Game Board -->
@@ -85,21 +98,49 @@
 .key.correct { background: #00ff88; color: black; }
 .key.present { background: #ffd700; color: black; }
 .key.absent { background: #2d3561; opacity: 0.5; }
+
+.btn-outline-accent {
+    color: #9b59b6;
+    border-color: #9b59b6;
+}
+
+.btn-outline-accent:hover, .btn-outline-accent.active {
+    background: #9b59b6;
+    color: #0f0f1a;
+}
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const words = ['PYTHON', 'GAMER', 'CODEX', 'REACT', 'FLASK', 'SMART', 'POWER', 'LIGHT', 'MUSIC', 'WORLD'];
+const wordLists = {
+    3: ['CAT', 'DOG', 'RUN', 'SUN', 'FUN', 'HAT', 'BAT', 'MAT', 'SAT', 'PAT', 'CAR', 'BAR', 'FAR', 'JAR', 'TAR', 'BED', 'RED', 'LED', 'GET', 'SET'],
+    4: ['GAME', 'CODE', 'PLAY', 'WORK', 'FIRE', 'WATER', 'EARTH', 'WIND', 'TIME', 'LIFE', 'LOVE', 'HOPE', 'DARK', 'LIGHT', 'POWER', 'MIND', 'BODY', 'SOUL', 'STAR', 'MOON'],
+    5: ['PYTHON', 'GAMER', 'CODEX', 'REACT', 'FLASK', 'SMART', 'POWER', 'LIGHT', 'MUSIC', 'WORLD', 'DREAM', 'BRAIN', 'SPACE', 'OCEAN', 'RIVER', 'STONE', 'FLAME', 'STORM', 'CLOUD', 'METAL'],
+    6: ['PUZZLE', 'GALAXY', 'PLANET', 'ROCKET', 'DRAGON', 'CASTLE', 'FOREST', 'GARDEN', 'ISLAND', 'JUNGLE', 'MARBLE', 'ORANGE', 'PURPLE', 'SILVER', 'GOLDEN', 'BRIDGE', 'CASTLE', 'FROZEN'],
+    7: ['RAINBOW', 'DIAMOND', 'EMERALD', 'CRYSTAL', 'THUNDER', 'LIGHTNING', 'VOLCANO', 'HURRICANE', 'TYPHOON', 'ECLIPSE', 'PENGUIN', 'DOLPHIN', 'PANTHER', 'JAGUAR', 'FALCON'],
+    8: ['ADVENTURE', 'CHAMPION', 'DISCOVER', 'EXCELLEN', 'FANTASTY', 'GLADIATOR', 'HARMONIA', 'IMAGINER', 'JOURNEYS', 'KINETICS', 'LABYRINTH', 'MYSTERIO', 'NIGHTFALL']
+};
+
 let secretWord = '';
 let currentRow = 0;
 let currentTile = 0;
-let guesses = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']];
+let wordLength = 5;
+let maxRows = 6;
+let guesses = [];
 let gameOver = false;
 
 function initGame() {
-    secretWord = words[Math.floor(Math.random() * words.length)];
-    console.log('Secret:', secretWord); // For testing
+    const wordList = wordLists[wordLength];
+    secretWord = wordList[Math.floor(Math.random() * wordList.length)];
+    console.log('Secret:', secretWord, 'Length:', wordLength);
+    
+    // Reset guesses array for current word length
+    guesses = [];
+    for (let i = 0; i < maxRows; i++) {
+        guesses.push(new Array(wordLength).fill(''));
+    }
+    
     createBoard();
     createKeyboard();
 }
@@ -107,16 +148,23 @@ function initGame() {
 function createBoard() {
     const board = document.getElementById('board');
     board.innerHTML = '';
-    for (let i = 0; i < 6; i++) {
+    
+    // Adjust tile size based on word length
+    const tileSize = wordLength > 6 ? 50 : 60;
+    
+    for (let i = 0; i < maxRows; i++) {
         const row = document.createElement('div');
         row.style.display = 'flex';
         row.style.justifyContent = 'center';
         row.style.gap = '5px';
         
-        for (let j = 0; j < 5; j++) {
+        for (let j = 0; j < wordLength; j++) {
             const tile = document.createElement('div');
             tile.className = 'tile';
             tile.id = `tile-${i}-${j}`;
+            tile.style.width = tileSize + 'px';
+            tile.style.height = tileSize + 'px';
+            tile.style.fontSize = (wordLength > 6 ? '1.5rem' : '2rem');
             row.appendChild(tile);
         }
         board.appendChild(row);
@@ -166,7 +214,7 @@ function createKeyboard() {
 }
 
 function handleKeyPress(letter) {
-    if (gameOver || currentTile >= 5) return;
+    if (gameOver || currentTile >= wordLength) return;
     
     guesses[currentRow][currentTile] = letter;
     const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
@@ -185,7 +233,7 @@ function deleteLetter() {
 }
 
 function submitGuess() {
-    if (currentTile < 5) {
+    if (currentTile < wordLength) {
         showMessage('Not enough letters!');
         return;
     }
@@ -197,10 +245,10 @@ function submitGuess() {
 function checkGuess(guess) {
     const solution = secretWord.split('');
     const guessArr = guess.split('');
-    const result = new Array(5).fill('absent');
+    const result = new Array(wordLength).fill('absent');
     
     // First pass: find correct letters
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < wordLength; i++) {
         if (guessArr[i] === solution[i]) {
             result[i] = 'correct';
             solution[i] = null;
@@ -209,7 +257,7 @@ function checkGuess(guess) {
     }
     
     // Second pass: find present letters
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < wordLength; i++) {
         if (guessArr[i] && solution.includes(guessArr[i])) {
             result[i] = 'present';
             solution[solution.indexOf(guessArr[i])] = null;
@@ -217,7 +265,7 @@ function checkGuess(guess) {
     }
     
     // Animate and color tiles
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < wordLength; i++) {
         setTimeout(() => {
             const tile = document.getElementById(`tile-${currentRow}-${i}`);
             tile.classList.remove('active');
@@ -238,11 +286,11 @@ function checkGuess(guess) {
         if (guess === secretWord) {
             showMessage('🎉 Correct! You won!', 'success');
             gameOver = true;
-            saveScore(100);
-        } else if (currentRow === 5) {
+            saveScore(100 * wordLength);
+        } else if (currentRow === maxRows - 1) {
             showMessage(`Game Over! The word was ${secretWord}`, 'danger');
             gameOver = true;
-            saveScore(10);
+            saveScore(10 * wordLength);
         } else {
             currentRow++;
             currentTile = 0;
@@ -272,9 +320,32 @@ document.getElementById('newGameBtn').addEventListener('click', () => {
     currentRow = 0;
     currentTile = 0;
     gameOver = false;
-    guesses = [['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['', '', '', '', '']];
+    guesses = [];
+    for (let i = 0; i < maxRows; i++) {
+        guesses.push(new Array(wordLength).fill(''));
+    }
     document.getElementById('message').textContent = '';
     initGame();
+});
+
+// Word length selection
+document.querySelectorAll('.length-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.length-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        wordLength = parseInt(this.dataset.length);
+        
+        // Reset game with new word length
+        currentRow = 0;
+        currentTile = 0;
+        gameOver = false;
+        guesses = [];
+        for (let i = 0; i < maxRows; i++) {
+            guesses.push(new Array(wordLength).fill(''));
+        }
+        document.getElementById('message').textContent = '';
+        initGame();
+    });
 });
 
 // Keyboard input

@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.name }} - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="text-white mb-0">{{ game.icon }} {{ game.name }}</h3>
+                <a href="{{ url_for('games') }}" class="btn btn-sm btn-outline-light">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+            
+            <div class="text-center mb-3 position-relative">
+                <canvas id="gameCanvas" width="800" height="600" 
+                        style="background: #1a1a2e; border-radius: 10px; max-width: 100%; border: 2px solid #e74c3c; display: block; cursor: crosshair;"></canvas>
+                
+                <div id="gameOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="background: rgba(5,5,8,0.95); border-radius: 10px; z-index: 10;">
+                    <h2 class="text-white mb-3" id="overlayTitle" style="font-family: 'Orbitron', sans-serif; text-shadow: 0 0 20px rgba(231,76,60,0.8);">Aim Trainer</h2>
+                    <p class="text-white-50 mb-4" id="overlaySubtitle">Click targets as fast as you can!</p>
+                    <button id="startBtn" class="btn btn-accent btn-lg pulse-glow">
+                        <i class="bi bi-play-fill"></i> Start Game
+                    </button>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Score</small>
+                        <h4 class="text-white mb-0" id="currentScore">0</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">High Score</small>
+                        <h4 class="text-warning mb-0" id="highScore">0</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Accuracy</small>
+                        <h4 class="text-info mb-0" id="accuracy">100%</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Time Left</small>
+                        <h4 class="text-danger mb-0" id="timeLeft">30s</h4>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong><i class="bi bi-crosshair"></i> How to Play:</strong> Click on targets to score points. Smaller targets = more points!
+                <br><small class="text-white-50">💡 Tip: Speed and accuracy both matter. Don't miss!</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="gameOverModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Time's Up!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-white">
+                <div class="text-center mb-4">
+                    <h2 class="text-accent" id="finalScore">0</h2>
+                    <p class="text-white-50" id="gameOverMessage"></p>
+                </div>
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <small class="text-white-50">Accuracy</small>
+                        <h5 id="finalAccuracy">0%</h5>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-white-50">Targets</small>
+                        <h5 id="finalTargets">0</h5>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-white-50">Coins</small>
+                        <h5 class="text-warning" id="finalCoins">0</h5>
+                    </div>
+                </div>
+                <div id="rewardsBreakdown" class="small text-white-50 mb-3"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-accent" id="playAgainBtn">
+                    <i class="bi bi-arrow-clockwise"></i> Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('startBtn');
+const overlay = document.getElementById('gameOverlay');
+
+let gameRunning = false;
+let score = 0;
+let highScore = parseInt(localStorage.getItem('aimHighScore')) || 0;
+let targets = [];
+let clicks = 0;
+let hits = 0;
+let timeLeft = 30;
+let gameTimer = null;
+let startTime = 0;
+
+document.getElementById('highScore').textContent = highScore;
+
+function spawnTarget() {
+    const minSize = 20;
+    const maxSize = 60;
+    const size = minSize + Math.random() * (maxSize - minSize);
+    
+    const margin = size;
+    const x = margin + Math.random() * (canvas.width - margin * 2);
+    const y = margin + Math.random() * (canvas.height - margin * 2);
+    
+    const points = Math.floor((maxSize - size) / 10) + 10;
+    
+    targets.push({
+        x: x,
+        y: y,
+        size: size,
+        points: points,
+        life: 1.0,
+        spawnTime: Date.now()
+    });
+}
+
+function startGame() {
+    if (gameRunning) return;
+    
+    score = 0;
+    targets = [];
+    clicks = 0;
+    hits = 0;
+    timeLeft = 30;
+    
+    document.getElementById('currentScore').textContent = '0';
+    document.getElementById('accuracy').textContent = '100%';
+    document.getElementById('timeLeft').textContent = '30s';
+    
+    gameRunning = true;
+    startTime = Date.now();
+    
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+    setTimeout(() => {
+        overlay.style.display = 'none';
+    }, 300);
+    
+    startBtn.disabled = true;
+    
+    for (let i = 0; i < 3; i++) {
+        spawnTarget();
+    }
+    
+    gameTimer = setInterval(() => {
+        timeLeft--;
+        document.getElementById('timeLeft').textContent = timeLeft + 's';
+        
+        if (timeLeft <= 0) {
+            gameOver();
+        }
+    }, 1000);
+    
+    gameLoop();
+}
+
+function gameLoop() {
+    if (!gameRunning) return;
+    
+    update();
+    draw();
+    
+    requestAnimationFrame(gameLoop);
+}
+
+function update() {
+    targets = targets.filter(t => {
+        const age = (Date.now() - t.spawnTime) / 1000;
+        return age < 5;
+    });
+    
+    while (targets.length < 3) {
+        spawnTarget();
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.strokeStyle = 'rgba(231, 76, 60, 0.1)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < canvas.width; i += 50) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+    }
+    for (let i = 0; i < canvas.height; i += 50) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(canvas.width, i);
+        ctx.stroke();
+    }
+    
+    targets.forEach(target => {
+        const age = (Date.now() - target.spawnTime) / 1000;
+        const alpha = Math.max(0, 1 - (age / 5));
+        
+        ctx.globalAlpha = alpha;
+        
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.size, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.size * 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.size * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.globalAlpha = 1.0;
+        
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(target.points, target.x, target.y - target.size - 10);
+    });
+}
+
+canvas.addEventListener('click', (e) => {
+    if (!gameRunning) return;
+    
+    clicks++;
+    
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+    
+    let hit = false;
+    
+    for (let i = targets.length - 1; i >= 0; i--) {
+        const target = targets[i];
+        const dx = mouseX - target.x;
+        const dy = mouseY - target.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < target.size) {
+            score += target.points;
+            hits++;
+            targets.splice(i, 1);
+            hit = true;
+            
+            document.getElementById('currentScore').textContent = score;
+            break;
+        }
+    }
+    
+    const accuracy = clicks > 0 ? Math.round((hits / clicks) * 100) : 100;
+    document.getElementById('accuracy').textContent = accuracy + '%';
+});
+
+async function gameOver() {
+    gameRunning = false;
+    clearInterval(gameTimer);
+    
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('aimHighScore', highScore);
+        document.getElementById('highScore').textContent = highScore;
+    }
+    
+    const playTime = Math.floor((Date.now() - startTime) / 1000);
+    const accuracy = clicks > 0 ? Math.round((hits / clicks) * 100) : 0;
+    
+    try {
+        const response = await fetch('/api/score', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                game_key: 'aimtrainer',
+                score: score,
+                play_time: playTime
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalAccuracy').textContent = accuracy + '%';
+            document.getElementById('finalTargets').textContent = hits;
+            document.getElementById('finalCoins').textContent = '+' + data.coins_earned;
+            document.getElementById('gameOverMessage').textContent = data.message;
+            
+            let breakdown = `<div>Base: ${data.base_coins} coins`;
+            if (data.streak_bonus > 0) breakdown += ` | Streak: +${data.streak_bonus}`;
+            if (data.multiplier > 1) breakdown += ` | Multiplier: ${data.multiplier}x`;
+            breakdown += `</div><div class="mt-1 text-success">+${data.xp_earned} XP earned!</div>`;
+            
+            if (data.level_up) {
+                breakdown += `<div class="mt-1 text-warning fw-bold">🎉 LEVEL UP! Now level ${data.new_level}!</div>`;
+            }
+            
+            document.getElementById('rewardsBreakdown').innerHTML = breakdown;
+            
+            const modal = new bootstrap.Modal(document.getElementById('gameOverModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Failed to submit score:', error);
+    }
+    
+    startBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Play Again';
+    startBtn.disabled = false;
+    overlay.style.display = 'flex';
+    document.getElementById('overlayTitle').textContent = "Time's Up!";
+    document.getElementById('overlaySubtitle').textContent = `Score: ${score} | Accuracy: ${accuracy}%`;
+}
+
+startBtn.addEventListener('click', startGame);
+
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('gameOverModal'));
+    if (modal) modal.hide();
+    setTimeout(() => {
+        startBtn.click();
+    }, 300);
+});
+
+draw();
+</script>
+{% endblock %}

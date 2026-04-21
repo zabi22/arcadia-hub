@@ -22,7 +22,7 @@
             
             <!-- Stats -->
             <div class="row mb-3">
-                <div class="col-6">
+                <div class="col-4">
                     <div class="card bg-dark">
                         <div class="card-body">
                             <h6 class="text-info">Best Time</h6>
@@ -30,11 +30,19 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <div class="card bg-dark">
                         <div class="card-body">
                             <h6 class="text-warning">Last Time</h6>
                             <h4 id="lastTime" class="text-white">-</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <h6 class="text-success">Streak</h6>
+                            <h4 id="streak" class="text-white">0🔥</h4>
                         </div>
                     </div>
                 </div>
@@ -58,6 +66,8 @@ let waitingForClick = false;
 let startTime = 0;
 let timeoutId = null;
 let bestTime = localStorage.getItem('reactionBest') || null;
+let streak = 0;
+let maxStreak = 0;
 
 if (bestTime) {
     document.getElementById('bestTime').textContent = bestTime + 'ms';
@@ -65,11 +75,15 @@ if (bestTime) {
 
 function handleClick() {
     if (waitingForStart) {
-        // Clicked too early!
         clearTimeout(timeoutId);
         waitingForStart = false;
+        streak = 0;
+        document.getElementById('streak').textContent = streak + '🔥';
         document.getElementById('instruction').textContent = 'Too early! Click Start again';
-        document.getElementById('gameArea').style.background = '#ff4757';
+        document.getElementById('gameArea').style.background = 'linear-gradient(135deg, #ff2a6d, #ff6b6b)';
+        setTimeout(() => {
+            document.getElementById('gameArea').style.background = '#0f0f1a';
+        }, 500);
         return;
     }
     
@@ -77,12 +91,21 @@ function handleClick() {
         const reactionTime = Date.now() - startTime;
         waitingForClick = false;
         
-        document.getElementById('gameArea').style.background = '#00ff88';
-        document.getElementById('instruction').textContent = `${reactionTime}ms`;
-        document.getElementById('result').style.display = 'block';
-        document.getElementById('result').textContent = getReactionRating(reactionTime);
+        // Update streak
+        if (reactionTime < 300) {
+            streak++;
+            if (streak > maxStreak) maxStreak = streak;
+        } else {
+            streak = 0;
+        }
+        document.getElementById('streak').textContent = streak + '🔥';
         
-        // Update stats
+        const rating = getReactionRating(reactionTime);
+        document.getElementById('gameArea').style.background = 'linear-gradient(135deg, #05ffa1, #00f3ff)';
+        document.getElementById('instruction').innerHTML = `<span style="font-size: 3rem; font-weight: bold;">${reactionTime}ms</span>`;
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result').textContent = rating;
+        
         document.getElementById('lastTime').textContent = reactionTime + 'ms';
         
         if (!bestTime || reactionTime < parseInt(bestTime)) {
@@ -91,12 +114,17 @@ function handleClick() {
             document.getElementById('bestTime').textContent = bestTime + 'ms';
         }
         
-        // Save score
-        saveScore(reactionTime);
+        saveScore(reactionTime, streak);
+        
+        setTimeout(() => {
+            document.getElementById('gameArea').style.background = '#0f0f1a';
+            document.getElementById('startBtn').disabled = false;
+        }, 1500);
     }
 }
 
 function getReactionRating(time) {
+    if (time < 150) return '⚡ SUPERHUMAN!';
     if (time < 200) return '🏆 Incredible!';
     if (time < 250) return '⭐ Excellent!';
     if (time < 300) return '👍 Good!';
@@ -106,10 +134,10 @@ function getReactionRating(time) {
 
 function startTest() {
     document.getElementById('startBtn').disabled = true;
-    document.getElementById('gameArea').style.background = '#1a1a2e';
+    document.getElementById('gameArea').style.background = '#0f0f1a';
     document.getElementById('result').style.display = 'none';
     
-    const randomDelay = Math.random() * 3000 + 2000; // 2-5 seconds
+    const randomDelay = Math.random() * 3000 + 2000;
     
     waitingForStart = true;
     document.getElementById('instruction').textContent = 'Wait for green...';
@@ -118,14 +146,15 @@ function startTest() {
         waitingForStart = false;
         waitingForClick = true;
         startTime = Date.now();
-        document.getElementById('gameArea').style.background = '#00ff88';
-        document.getElementById('instruction').textContent = 'CLICK NOW!';
+        document.getElementById('gameArea').style.background = 'linear-gradient(135deg, #05ffa1, #00f3ff)';
+        document.getElementById('instruction').innerHTML = '<span style="font-size: 3rem; font-weight: bold;">CLICK NOW!</span>';
     }, randomDelay);
 }
 
-function saveScore(reactionTime) {
-    // Lower time = better score, so invert it
-    const score = Math.max(1000 - reactionTime, 100);
+function saveScore(reactionTime, currentStreak) {
+    const baseScore = Math.max(100, 1000 - reactionTime);
+    const streakBonus = currentStreak * 50;
+    const score = baseScore + streakBonus;
     
     fetch('/api/score', {
         method: 'POST',
@@ -135,12 +164,6 @@ function saveScore(reactionTime) {
             score: score,
             play_time: 5
         })
-    }).then(() => {
-        document.getElementById('startBtn').disabled = false;
-        setTimeout(() => {
-            document.getElementById('gameArea').style.background = '#1a1a2e';
-            document.getElementById('instruction').textContent = 'Click Start to try again';
-        }, 2000);
     });
 }
 

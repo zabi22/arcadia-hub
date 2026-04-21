@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.name }} - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="text-white mb-0">{{ game.icon }} {{ game.name }}</h3>
+                <a href="{{ url_for('games') }}" class="btn btn-sm btn-outline-light">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+            
+            <div class="text-center mb-3 position-relative">
+                <canvas id="gameCanvas" width="600" height="600" 
+                        style="background: #0a0a0f; border-radius: 10px; max-width: 100%; border: 2px solid #f39c12; display: block;"></canvas>
+                
+                <div id="gameOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="background: rgba(5,5,8,0.95); border-radius: 10px; z-index: 10;">
+                    <h2 class="text-white mb-3" id="overlayTitle" style="font-family: 'Orbitron', sans-serif; text-shadow: 0 0 20px rgba(243,156,18,0.8);">Dodge Survival</h2>
+                    <p class="text-white-50 mb-4" id="overlaySubtitle">Survive as long as you can!</p>
+                    <button id="startBtn" class="btn btn-accent btn-lg pulse-glow">
+                        <i class="bi bi-play-fill"></i> Start Game
+                    </button>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Score</small>
+                        <h4 class="text-white mb-0" id="currentScore">0</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">High Score</small>
+                        <h4 class="text-warning mb-0" id="highScore">0</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Time</small>
+                        <h4 class="text-info mb-0" id="survivalTime">0s</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <div class="card bg-dark border-secondary p-2 text-center">
+                        <small class="text-white-50">Wave</small>
+                        <h4 class="text-danger mb-0" id="wave">1</h4>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong><i class="bi bi-keyboard"></i> Controls:</strong> WASD or Arrow Keys to move. Dodge everything!
+                <br><small class="text-white-50">💡 Tip: Survive longer for higher scores. Waves get harder!</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="gameOverModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Game Over!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-white">
+                <div class="text-center mb-4">
+                    <h2 class="text-accent" id="finalScore">0</h2>
+                    <p class="text-white-50" id="gameOverMessage"></p>
+                </div>
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <small class="text-white-50">Survived</small>
+                        <h5 id="finalTime">0s</h5>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-white-50">Wave</small>
+                        <h5 id="finalWave">1</h5>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-white-50">Coins</small>
+                        <h5 class="text-warning" id="finalCoins">0</h5>
+                    </div>
+                </div>
+                <div id="rewardsBreakdown" class="small text-white-50 mb-3"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-accent" id="playAgainBtn">
+                    <i class="bi bi-arrow-clockwise"></i> Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('startBtn');
+const overlay = document.getElementById('gameOverlay');
+
+let gameRunning = false;
+let score = 0;
+let highScore = parseInt(localStorage.getItem('dodgeHighScore')) || 0;
+let survivalTime = 0;
+let currentWave = 1;
+let startTime = 0;
+let frames = 0;
+
+document.getElementById('highScore').textContent = highScore;
+
+const player = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    size: 20,
+    speed: 5,
+    color: '#00f3ff'
+};
+
+let obstacles = [];
+let particles = [];
+let keys = {};
+
+function spawnObstacle() {
+    const types = ['falling', 'homing', 'orbit'];
+    const type = types[Math.floor(Math.random() * Math.min(currentWave, types.length))];
+    
+    let obs = { type: type, size: 15 + Math.random() * 10 };
+    
+    if (type === 'falling') {
+        obs.x = Math.random() * canvas.width;
+        obs.y = -obs.size;
+        obs.dy = 3 + Math.random() * 3 + (currentWave * 0.5);
+        obs.dx = (Math.random() - 0.5) * 2;
+    } else if (type === 'homing') {
+        const side = Math.floor(Math.random() * 4);
+        if (side === 0) { obs.x = 0; obs.y = Math.random() * canvas.height; }
+        else if (side === 1) { obs.x = canvas.width; obs.y = Math.random() * canvas.height; }
+        else if (side === 2) { obs.x = Math.random() * canvas.width; obs.y = 0; }
+        else { obs.x = Math.random() * canvas.width; obs.y = canvas.height; }
+        
+        obs.speed = 2 + (currentWave * 0.3);
+    } else if (type === 'orbit') {
+        obs.x = canvas.width / 2;
+        obs.y = canvas.height / 2;
+        obs.radius = 100 + Math.random() * 150;
+        obs.angle = Math.random() * Math.PI * 2;
+        obs.angularVelocity = 0.02 + (Math.random() * 0.02);
+    }
+    
+    obstacles.push(obs);
+}
+
+function createParticle(x, y, color, count = 8) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 1.0,
+            color: color,
+            size: Math.random() * 4 + 2
+        });
+    }
+}
+
+function updateParticles() {
+    particles = particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.02;
+        p.size *= 0.98;
+        return p.life > 0;
+    });
+}
+
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.globalAlpha = 1.0;
+}
+
+function startGame() {
+    if (gameRunning) return;
+    
+    player.x = canvas.width / 2;
+    player.y = canvas.height / 2;
+    
+    score = 0;
+    survivalTime = 0;
+    currentWave = 1;
+    frames = 0;
+    obstacles = [];
+    particles = [];
+    
+    document.getElementById('currentScore').textContent = '0';
+    document.getElementById('survivalTime').textContent = '0s';
+    document.getElementById('wave').textContent = '1';
+    
+    gameRunning = true;
+    startTime = Date.now();
+    
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+    setTimeout(() => {
+        overlay.style.display = 'none';
+    }, 300);
+    
+    startBtn.disabled = true;
+    
+    gameLoop();
+}
+
+function gameLoop() {
+    if (!gameRunning) return;
+    
+    update();
+    draw();
+    
+    requestAnimationFrame(gameLoop);
+}
+
+function update() {
+    frames++;
+    
+    if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
+    if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+    if (keys['ArrowUp'] || keys['w']) player.y -= player.speed;
+    if (keys['ArrowDown'] || keys['s']) player.y += player.speed;
+    
+    player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
+    player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+    
+    if (frames % Math.max(10, 60 - (currentWave * 5)) === 0) {
+        spawnObstacle();
+    }
+    
+    obstacles.forEach(obs => {
+        if (obs.type === 'falling') {
+            obs.x += obs.dx;
+            obs.y += obs.dy;
+        } else if (obs.type === 'homing') {
+            const dx = player.x - obs.x;
+            const dy = player.y - obs.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > 0) {
+                obs.x += (dx / dist) * obs.speed;
+                obs.y += (dy / dist) * obs.speed;
+            }
+        } else if (obs.type === 'orbit') {
+            obs.angle += obs.angularVelocity;
+            obs.x = canvas.width / 2 + Math.cos(obs.angle) * obs.radius;
+            obs.y = canvas.height / 2 + Math.sin(obs.angle) * obs.radius;
+        }
+        
+        const dx = player.x - obs.x;
+        const dy = player.y - obs.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < player.size + obs.size - 5) {
+            gameOver();
+        }
+    });
+    
+    obstacles = obstacles.filter(obs => {
+        if (obs.type === 'falling') {
+            return obs.y < canvas.height + 50;
+        }
+        return true;
+    });
+    
+    survivalTime = Math.floor((Date.now() - startTime) / 1000);
+    score += 0.5;
+    
+    const newWave = Math.floor(survivalTime / 10) + 1;
+    if (newWave > currentWave) {
+        currentWave = newWave;
+        document.getElementById('wave').textContent = currentWave;
+        createParticle(canvas.width/2, canvas.height/2, '#f39c12', 20);
+    }
+    
+    document.getElementById('currentScore').textContent = Math.floor(score);
+    document.getElementById('survivalTime').textContent = survivalTime + 's';
+    
+    updateParticles();
+}
+
+function draw() {
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.strokeStyle = 'rgba(243, 156, 18, 0.1)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < canvas.width; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+    }
+    for (let i = 0; i < canvas.height; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(canvas.width, i);
+        ctx.stroke();
+    }
+    
+    obstacles.forEach(obs => {
+        if (obs.type === 'falling') {
+            ctx.fillStyle = '#e74c3c';
+        } else if (obs.type === 'homing') {
+            ctx.fillStyle = '#9b59b6';
+        } else {
+            ctx.fillStyle = '#f39c12';
+        }
+        
+        ctx.beginPath();
+        ctx.arc(obs.x, obs.y, obs.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    
+    ctx.fillStyle = player.color;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = player.color;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(player.x - 5, player.y - 5, 4, 0, Math.PI * 2);
+    ctx.arc(player.x + 5, player.y - 5, 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    drawParticles();
+}
+
+async function gameOver() {
+    gameRunning = false;
+    
+    if (score > highScore) {
+        highScore = Math.floor(score);
+        localStorage.setItem('dodgeHighScore', highScore);
+        document.getElementById('highScore').textContent = highScore;
+    }
+    
+    createParticle(player.x, player.y, '#e74c3c', 30);
+    
+    const playTime = Math.floor((Date.now() - startTime) / 1000);
+    
+    try {
+        const response = await fetch('/api/score', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                game_key: 'dodge',
+                score: Math.floor(score),
+                play_time: playTime
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('finalScore').textContent = Math.floor(score);
+            document.getElementById('finalTime').textContent = survivalTime + 's';
+            document.getElementById('finalWave').textContent = currentWave;
+            document.getElementById('finalCoins').textContent = '+' + data.coins_earned;
+            document.getElementById('gameOverMessage').textContent = data.message;
+            
+            let breakdown = `<div>Base: ${data.base_coins} coins`;
+            if (data.streak_bonus > 0) breakdown += ` | Streak: +${data.streak_bonus}`;
+            if (data.multiplier > 1) breakdown += ` | Multiplier: ${data.multiplier}x`;
+            breakdown += `</div><div class="mt-1 text-success">+${data.xp_earned} XP earned!</div>`;
+            
+            if (data.level_up) {
+                breakdown += `<div class="mt-1 text-warning fw-bold">🎉 LEVEL UP! Now level ${data.new_level}!</div>`;
+            }
+            
+            document.getElementById('rewardsBreakdown').innerHTML = breakdown;
+            
+            const modal = new bootstrap.Modal(document.getElementById('gameOverModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Failed to submit score:', error);
+    }
+    
+    startBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Play Again';
+    startBtn.disabled = false;
+    overlay.style.display = 'flex';
+    document.getElementById('overlayTitle').textContent = 'Game Over!';
+    document.getElementById('overlaySubtitle').textContent = `Score: ${Math.floor(score)} | Survived: ${survivalTime}s`;
+}
+
+document.addEventListener('keydown', (e) => {
+    keys[e.key] = true;
+});
+
+document.addEventListener('keyup', (e) => {
+    keys[e.key] = false;
+});
+
+startBtn.addEventListener('click', startGame);
+
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('gameOverModal'));
+    if (modal) modal.hide();
+    setTimeout(() => {
+        startBtn.click();
+    }, 300);
+});
+
+draw();
+</script>
+{% endblock %}
