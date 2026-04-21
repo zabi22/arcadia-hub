@@ -23,7 +23,15 @@ This platform now supports **PostgreSQL** for production deployments!
 3. Choose your plan (Free tier available)
 4. Note the **Internal Database URL** (looks like: `postgresql://user:pass@host:5432/dbname`)
 
-### Step 2: Set Environment Variables
+### Step 2: Configure Render to Use requirements-render.txt
+
+**Important:** Render should use `requirements-render.txt` (which includes psycopg2-binary), not `requirements.txt`.
+
+In your Render dashboard:
+- **Build Command:** `pip install -r requirements-render.txt`
+- **Start Command:** `gunicorn app:app`
+
+### Step 3: Set Environment Variables
 
 In your Render dashboard, add these environment variables:
 
@@ -35,12 +43,23 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 GOOGLE_REDIRECT_URI=https://your-app.onrender.com/auth/google/callback
 ```
 
-### Step 3: Deploy Your App
+### Step 4: Deploy Your App
 
 1. Connect your GitHub repository to Render
-2. Set build command: `pip install -r requirements.txt`
-3. Set start command: `gunicorn app:app`
-4. Deploy!
+2. Deploy!
+
+---
+
+## 💻 Local Development
+
+For local development, just use `requirements.txt` (SQLite, no PostgreSQL needed):
+
+```bash
+pip install -r requirements.txt
+python app.py
+```
+
+The app will automatically use SQLite for local development.
 
 ---
 
