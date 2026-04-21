@@ -860,10 +860,17 @@ def get_snake_stats():
 # Google OAuth routes
 @app.route('/auth/google')
 def google_login():
-    if not os.environ.get('GOOGLE_CLIENT_ID'):
+    google_client_id = os.environ.get('GOOGLE_CLIENT_ID')
+    logger.info(f"Google login attempted - CLIENT_ID set: {'Yes' if google_client_id else 'No'}")
+    logger.info(f"CLIENT_ID value: {google_client_id[:20] + '...' if google_client_id else 'None'}")
+    
+    if not google_client_id:
+        logger.error("Google OAuth is NOT configured!")
         flash('Google login is not configured', 'warning')
         return redirect(url_for('login'))
+    
     redirect_uri = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/auth/google/callback')
+    logger.info(f"Redirect URI: {redirect_uri}")
     return oauth.google.authorize_redirect(redirect_uri)
 
 @app.route('/auth/google/callback')
