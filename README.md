@@ -4,27 +4,13 @@
 
 ### 🌟 Play Games • Earn Coins • Compete Globally
 
-![Python](https://img.shields.io/badge/Python-3.13-blue?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python)
 ![Flask](https://img.shields.io/badge/Flask-3.0-green?style=for-the-badge&logo=flask)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple?style=for-the-badge&logo=bootstrap)
 ![SQLite](https://img.shields.io/badge/SQLite-3.0-orange?style=for-the-badge&logo=sqlite)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-success?style=for-the-badge)
 
-**🔴 LIVE DEMO:** [arcadia-hub.onrender.com](https://arcadia-hub.onrender.com)
-
----
-
-## 🎯 Quick Overview
-
-**Arcadia Hub** is a full-stack web gaming platform built with Flask and modern web technologies. Features include:
-
-- 🎮 **20+ Playable Games** - Classic arcade and puzzle games
-- 👤 **User Authentication** - Secure login with bcrypt password hashing
-- 💰 **Economy System** - Earn coins, maintain streaks, unlock rewards
-- 🏆 **Global Leaderboards** - Compete with players worldwide
-- 👥 **Social Features** - Friend system and chat
-- 🎨 **Customizable Themes** - Dark/Light mode support
+**🔴 LIVE DEMO:** [arcadia-hub.onrender.com](https://arcadia-hub.onrender.com) *(Coming Soon!)*
 
 </div>
 
@@ -76,11 +62,10 @@
 <td width="50%">
 
 ### 🎮 Gaming
-- 🕹️ 20+ Classic Games
-- 🎯 Aim Trainer, Snake, 2048, Flappy Bird & More
-- 📊 Real-time Score Tracking
+- 🐍 6 Classic Games
+- 🕹️ Real-time Gameplay
+- 📊 Score Tracking
 - 🏅 High Score Records
-- 💰 Coin Rewards System
 
 </td>
 <td width="50%">
@@ -125,55 +110,94 @@
    - Build streaks for bigger rewards
 
 #### Step 3: Play Games & Earn Coins
+<div align="center">
+<img src="https://via.placeholder.com/600x300/0f0f1a/ffd700?text=Snake+Gameplay" alt="Playing Snake" width="600"/>
+</div>
 
-Choose from **20+ games** including:
-- 🐍 **Snake** - Classic snake game with growing difficulty
-- 🎯 **Aim Trainer** - Test your aiming skills
-- 🧱 **Breakout** - Break bricks with a bouncing ball
-- 🎨 **Color Switch** - Match colors to progress
-- 🏃 **Dodge** - Avoid obstacles in this endless runner
-- 🐦 **Flappy Bird** - Navigate through pipes
-- 🔢 **2048** - Merge numbers to reach 2048
-- 🏃 **Jumper** - Jump platforms in this vertical climber
-- 🌀 **Maze** - Navigate through complex mazes
-- 🧠 **Memory** - Match pairs of cards
-- 🏓 **Pong** - Classic paddle game
-- ⚡ **Reaction** - Test your reflexes
-- 🎵 **Rhythm** - Hit notes in rhythm
-- 🏃 **Runner** - Endless running game
-- 🎯 **Shooting** - Target practice game
-- 🗼 **Tower Stack** - Stack blocks precisely
-- ⭕ **Tic Tac Toe** - Classic strategy game
-- 🔤 **Wordle** - Guess the word in 6 tries
+**How to Play Snake** 🐍:
+- Use **Arrow Keys** to move
+- Eat red food to grow
+- Don't hit walls or yourself!
+- Each food = **10 points**
+- Score **100+ points** = **10 coins earned**
+
+**Controls:**
+```
+↑ ↓ ← →  : Move snake
+P        : Pause game
+ESC      : Quit game
+```
+
+**Scoring:**
+- 🍎 Food collected: +10 points each
+- 💰 Coins earned: Score ÷ 10
+- 🏆 High scores saved forever!
 
 ---
 
 ## 🕹️ Games Available
 
-### 🎮 All Games (Fully Playable)
+### Currently Playing:
 
-| Game | Category | Difficulty | Description |
-|------|----------|------------|-------------|
-| 🎯 Aim Trainer | Skill | Easy | Test your aiming accuracy |
-| 🧱 Breakout | Arcade | Medium | Break all the bricks |
-| 🎨 Color Switch | Puzzle | Medium | Match colors to progress |
-| 🏃 Dodge | Arcade | Hard | Avoid incoming obstacles |
-| 🐦 Flappy Bird | Arcade | Hard | Navigate through pipes |
-| 🔢 2048 | Puzzle | Medium | Merge numbers strategically |
-| 🏃 Jumper | Arcade | Medium | Climb to new heights |
-| 🌀 Maze | Puzzle | Easy | Find your way out |
-| 🧠 Memory | Puzzle | Easy | Match all the pairs |
-| 🏓 Pong | Classic | Easy | Defeat the AI opponent |
-| ⚡ Reaction | Skill | Easy | Test your reflexes |
-| 🎵 Rhythm | Music | Hard | Hit notes on beat |
-| 🏃 Runner | Arcade | Medium | Run as far as you can |
-| 🎯 Shooting | Skill | Medium | Hit all the targets |
-| 🐍 Snake | Classic | Easy | Classic snake game |
-| 🗼 Tower Stack | Arcade | Medium | Stack with precision |
-| ⭕ Tic Tac Toe | Strategy | Easy | Beat the AI |
-| 🔤 Wordle | Word | Hard | Guess the word |
+#### 🐍 Snake Arcade ✅ **FULLY PLAYABLE**
+<div align="center">
+<img src="https://via.placeholder.com/400x250/0f0f1a/00ff88?text=Snake+Arcade" alt="Snake Game" width="400"/>
+</div>
 
-All games reward coins based on your performance!
+**Difficulty:** Easy | **Players:** Single
+
+**How to Master:**
+- Start slow, plan your route
+- Trap yourself less
+- Use corners strategically
+- Speed increases as you eat!
+
+**Pro Tips:**
+```markdown
+✓ Stay in open areas
+✓ Don't chase food blindly
+✓ Plan 3-4 moves ahead
+✓ Use edges as safety zones
+```
+
+---
+
+### Coming Soon:
+
+#### ⭕ Tic Tac Toe
+<div align="center">
+<img src="https://via.placeholder.com/300x200/1a1a2e/00d4ff?text=Tic+Tac+Toe" alt="Tic Tac Toe" width="300"/>
+</div>
+
+**Strategy:** Block corners, force forks!
+
+#### 🧠 Memory Match
+<div align="center">
+<img src="https://via.placeholder.com/300x200/16213e/ff6b6b?text=Memory+Match" alt="Memory Game" width="300"/>
+</div>
+
+**Challenge:** Find all pairs before time runs out!
+
+#### ⚡ Reaction Time
+<div align="center">
+<img src="https://via.placeholder.com/300x200/0f0f1a/ffd700?text=Reaction+Time" alt="Reaction Game" width="300"/>
+</div>
+
+**Test:** How fast are your reflexes?
+
+#### 🔤 Word Guess
+<div align="center">
+<img src="https://via.placeholder.com/300x200/1a1a2e/9b59b6?text=Word+Guess" alt="Word Game" width="300"/>
+</div>
+
+**Puzzle:** Guess the word in 6 tries!
+
+#### 🏓 Pong Classic
+<div align="center">
+<img src="https://via.placeholder.com/300x200/16213e/e74c3c?text=Pong" alt="Pong Game" width="300"/>
+</div>
+
+**Battle:** Challenge friends or AI!
 
 ---
 
@@ -186,17 +210,16 @@ All games reward coins based on your performance!
 | 🎮 First login bonus | +100 |
 | 📅 Daily login (Day 1) | +50 |
 | 🔥 Daily login (Day 7) | +100 (bonus!) |
-| 🏆 Win a game | Variable (based on score) |
+| 🏆 Win a game (per 10 pts) | +1 |
 | 🎯 Beat high score | +25 |
 | 👥 Add a friend | +10 |
 
 ### How to Spend Coins
-
-Visit the **Shop** to spend your hard-earned coins:
-- 🎨 Avatar customization items
-- 🎮 Unlock special game modes
-- 🏅 Exclusive badges and titles
-- 🎁 Power-ups and boosters
+*(Shop coming soon!)*
+- 🎨 Avatar customization
+- 🎮 Unlock premium games
+- 🏅 Special badges
+- 🎁 Power-ups
 
 ---
 
@@ -237,23 +260,29 @@ git clone https://github.com/zabi22/arcadia-hub.git
 cd arcadia-hub
 ```
 
-**2. Create Virtual Environment (Recommended)**
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
-
-**3. Install Dependencies**
+**2. Install Dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-**4. Run the Application**
+**3. Run the Application**
+
+*Mac/Linux:*
+```bash
+./start.sh
+```
+
+*Windows:*
+```cmd
+start.bat
+```
+
+*Manual:*
 ```bash
 python app.py
 ```
 
-**5. Open Your Browser**
+**4. Open Your Browser**
 ```
 http://localhost:5000
 ```
@@ -271,7 +300,13 @@ http://localhost:5000
 
 > *"Built this gaming platform to learn full-stack development and share my passion for coding!"*
 
+---
 
+## 📄 License
+
+This project is open source under the **MIT License**. Feel free to use, modify, and distribute.
+
+---
 
 <div align="center">
 
