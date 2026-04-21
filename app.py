@@ -26,8 +26,11 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 # Database configuration - support both SQLite and PostgreSQL
 DATABASE_URL = os.environ.get('DATABASE_URL')
-DB_TYPE = 'postgresql' if DATABASE_URL else 'sqlite'
+DB_TYPE = 'postgresql' if DATABASE_URL and DATABASE_URL.startswith('postgresql') else 'sqlite'
 DB_NAME = 'gaming_app.db'
+
+logger.info(f"Database type: {DB_TYPE}")
+logger.info(f"DATABASE_URL set: {'Yes' if DATABASE_URL else 'No'}")
 
 # Google OAuth configuration
 oauth = OAuth(app)
@@ -92,18 +95,25 @@ class DatabaseManager:
         """Connect to database with proper settings for reliability"""
         try:
             if DB_TYPE == 'postgresql':
-                import psycopg2
-                from psycopg2.extras import RealDictCursor
-                
-                self.conn = psycopg2.connect(
-                    DATABASE_URL,
-                    sslmode='require'
-                )
-                self.conn.autocommit = False
-                self.cursor = self.conn.cursor(cursor_factory=RealDictCursor)
-                logger.info("Connected to PostgreSQL database")
+                try:
+                    import psycopg2
+                    from psycopg2.extras import RealDictCursor
+                    
+                    logger.info(f"Connecting to PostgreSQL...")
+                    self.conn = psycopg2.connect(
+                        DATABASE_URL,
+                        sslmode='require'
+                    )
+                    self.conn.autocommit = False
+                    self.cursor = self.conn.cursor(cursor_factory=RealDictCursor)
+                    logger.info("Successfully connected to PostgreSQL database")
+                except ImportError as e:
+                    logger.error(f"psycopg2 not installed: {e}")
+                    logger.error("Falling back to SQLite. For production, install psycopg2-binary")
+                    raise
             else:
                 # SQLite with WAL mode for better reliability
+                logger.info(f"Connecting to SQLite database: {DB_NAME}")
                 self.conn = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
                 self.conn.row_factory = sqlite3.Row
                 self.cursor = self.conn.cursor()
@@ -113,9 +123,12 @@ class DatabaseManager:
                 self.cursor.execute('PRAGMA synchronous=NORMAL')
                 self.cursor.execute('PRAGMA cache_size=-2000')  # 2MB cache
                 self.cursor.execute('PRAGMA foreign_keys=ON')
-                logger.info(f"Connected to SQLite database with WAL mode")
+                logger.info(f"Successfully connected to SQLite database with WAL mode")
         except Exception as e:
             logger.error(f"Database connection error: {e}")
+            logger.error(f"DB_TYPE: {DB_TYPE}, DATABASE_URL set: {'Yes' if DATABASE_URL else 'No'}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise
     
     def _init_version_table(self):
