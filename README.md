@@ -62,10 +62,11 @@
 <td width="50%">
 
 ### 🎮 Gaming
-- 🐍 6 Classic Games
-- 🕹️ Real-time Gameplay
-- 📊 Score Tracking
+- 🕹️ 18 Fully Playable Games
+- 🎯 Multiple Game Categories
+- 📊 Real-time Score Tracking
 - 🏅 High Score Records
+- 💰 Coin Rewards System
 
 </td>
 <td width="50%">
@@ -110,94 +111,285 @@
    - Build streaks for bigger rewards
 
 #### Step 3: Play Games & Earn Coins
-<div align="center">
-<img src="https://via.placeholder.com/600x300/0f0f1a/ffd700?text=Snake+Gameplay" alt="Playing Snake" width="600"/>
-</div>
 
-**How to Play Snake** 🐍:
-- Use **Arrow Keys** to move
-- Eat red food to grow
-- Don't hit walls or yourself!
-- Each food = **10 points**
-- Score **100+ points** = **10 coins earned**
+Choose from **18 fully playable games** across different categories:
 
-**Controls:**
-```
-↑ ↓ ← →  : Move snake
-P        : Pause game
-ESC      : Quit game
-```
+**🎯 Skill Games:** Aim Trainer, Reaction Time, Shooting  
+**🕹️ Arcade Games:** Snake, Breakout, Dodge, Flappy Bird, Runner, Jumper, Tower Stack, Pong, Rhythm  
+**🧩 Puzzle Games:** 2048, Memory Match, Maze, Color Switch  
+**📝 Word Games:** Wordle  
+**♟️ Strategy Games:** Tic Tac Toe  
 
-**Scoring:**
-- 🍎 Food collected: +10 points each
-- 💰 Coins earned: Score ÷ 10
-- 🏆 High scores saved forever!
+Each game rewards coins based on your performance. Play more, earn more!
 
 ---
 
 ## 🕹️ Games Available
 
-### Currently Playing:
+All **18 games** are fully playable and reward coins based on your performance!
 
-#### 🐍 Snake Arcade ✅ **FULLY PLAYABLE**
-<div align="center">
-<img src="https://via.placeholder.com/400x250/0f0f1a/00ff88?text=Snake+Arcade" alt="Snake Game" width="400"/>
-</div>
+### 🎯 Skill Games
 
-**Difficulty:** Easy | **Players:** Single
+#### 1. 🎯 Aim Trainer
+**Category:** Skill | **Difficulty:** Easy
 
-**How to Master:**
-- Start slow, plan your route
-- Trap yourself less
-- Use corners strategically
-- Speed increases as you eat!
+**How to Play:**
+- Click on targets as they appear on screen
+- Test your accuracy and speed
+- Hit more targets = higher score
+- **Controls:** Mouse click to shoot
 
-**Pro Tips:**
-```markdown
-✓ Stay in open areas
-✓ Don't chase food blindly
-✓ Plan 3-4 moves ahead
-✓ Use edges as safety zones
-```
+**Tips:**
+- Stay focused and aim carefully
+- Speed improves with practice
+- Try to beat your high score!
 
----
+#### 2. ⚡ Reaction Time
+**Category:** Skill | **Difficulty:** Easy
 
-### Coming Soon:
+**How to Play:**
+- Wait for the screen to change color
+- Click as fast as you can when it changes
+- Your reaction time is measured in milliseconds
+- **Controls:** Mouse click
 
-#### ⭕ Tic Tac Toe
-<div align="center">
-<img src="https://via.placeholder.com/300x200/1a1a2e/00d4ff?text=Tic+Tac+Toe" alt="Tic Tac Toe" width="300"/>
-</div>
+**Tips:**
+- Don't click too early (false start!)
+- Stay alert and focused
+- Lower time = better score
 
-**Strategy:** Block corners, force forks!
+#### 3. 🎯 Shooting
+**Category:** Skill | **Difficulty:** Medium
 
-#### 🧠 Memory Match
-<div align="center">
-<img src="https://via.placeholder.com/300x200/16213e/ff6b6b?text=Memory+Match" alt="Memory Game" width="300"/>
-</div>
+**How to Play:**
+- Shoot moving targets before they disappear
+- Aim carefully and time your shots
+- Different targets give different points
+- **Controls:** Mouse click to shoot
 
-**Challenge:** Find all pairs before time runs out!
+**Tips:**
+- Lead your shots for moving targets
+- Prioritize high-value targets
+- Accuracy matters more than speed
 
-#### ⚡ Reaction Time
-<div align="center">
-<img src="https://via.placeholder.com/300x200/0f0f1a/ffd700?text=Reaction+Time" alt="Reaction Game" width="300"/>
-</div>
+### 🕹️ Arcade Games
 
-**Test:** How fast are your reflexes?
+#### 4. 🐍 Snake
+**Category:** Arcade | **Difficulty:** Easy
 
-#### 🔤 Word Guess
-<div align="center">
-<img src="https://via.placeholder.com/300x200/1a1a2e/9b59b6?text=Word+Guess" alt="Word Game" width="300"/>
-</div>
+**How to Play:**
+- Use arrow keys to control the snake
+- Eat food to grow longer
+- Don't hit the walls or yourself!
+- **Controls:** Arrow keys (↑ ↓ ← →)
 
-**Puzzle:** Guess the word in 6 tries!
+**Tips:**
+- Plan your route ahead
+- Stay in open areas
+- Speed increases as you grow
 
-#### 🏓 Pong Classic
-<div align="center">
-<img src="https://via.placeholder.com/300x200/16213e/e74c3c?text=Pong" alt="Pong Game" width="300"/>
-</div>
+#### 5. 🧱 Breakout
+**Category:** Arcade | **Difficulty:** Medium
 
-**Battle:** Challenge friends or AI!
+**How to Play:**
+- Move paddle to bounce the ball
+- Break all the bricks at the top
+- Don't let the ball fall!
+- **Controls:** Mouse or arrow keys (← →)
+
+**Tips:**
+- Hit bricks at angles for better control
+- Clear bottom rows first
+- Keep the ball in play
+
+#### 6. 🏃 Dodge
+**Category:** Arcade | **Difficulty:** Hard
+
+**How to Play:**
+- Avoid incoming obstacles
+- Move left and right to survive
+- Game gets faster over time
+- **Controls:** Arrow keys (← →) or A/D
+
+**Tips:**
+- Stay calm as speed increases
+- Anticipate obstacle patterns
+- Quick reflexes are key!
+
+#### 7. 🐦 Flappy Bird
+**Category:** Arcade | **Difficulty:** Hard
+
+**How to Play:**
+- Tap/click to flap and fly
+- Navigate through pipe gaps
+- Don't hit pipes or the ground!
+- **Controls:** Mouse click or spacebar
+
+**Tips:**
+- Tap rhythmically, not randomly
+- Stay in the middle of gaps
+- Practice makes perfect!
+
+#### 8. 🏃 Runner
+**Category:** Arcade | **Difficulty:** Medium
+
+**How to Play:**
+- Run as far as you can
+- Jump over obstacles
+- Collect coins for bonus points
+- **Controls:** Spacebar or up arrow to jump
+
+**Tips:**
+- Time your jumps carefully
+- Collect coins for extra points
+- Pace yourself for distance
+
+#### 9. 🏃 Jumper
+**Category:** Arcade | **Difficulty:** Medium
+
+**How to Play:**
+- Jump between platforms
+- Climb higher and higher
+- Don't fall down!
+- **Controls:** Arrow keys (← →) to move, auto-jump
+
+**Tips:**
+- Land in the center of platforms
+- Plan your next jump
+- Stay alert for moving platforms
+
+#### 10. 🗼 Tower Stack
+**Category:** Arcade | **Difficulty:** Medium
+
+**How to Play:**
+- Stack blocks on top of each other
+- Align blocks perfectly for best results
+- Misaligned parts get cut off
+- **Controls:** Mouse click or spacebar to drop
+
+**Tips:**
+- Time your drops carefully
+- Aim for perfect alignment
+- Tower gets harder as it grows
+
+#### 11. 🏓 Pong
+**Category:** Arcade | **Difficulty:** Easy
+
+**How to Play:**
+- Control your paddle to bounce the ball
+- Score by getting ball past opponent
+- First to reach target score wins
+- **Controls:** Mouse or arrow keys (↑ ↓)
+
+**Tips:**
+- Anticipate ball trajectory
+- Angle your shots strategically
+- Stay centered when possible
+
+#### 12. 🎵 Rhythm
+**Category:** Arcade | **Difficulty:** Hard
+
+**How to Play:**
+- Hit notes when they reach the target zone
+- Follow the beat and rhythm
+- Maintain your combo for bonus points
+- **Controls:** Arrow keys or designated keys
+
+**Tips:**
+- Listen to the music
+- Stay on beat
+- Practice improves timing
+
+### 🧩 Puzzle Games
+
+#### 13. 🔢 2048
+**Category:** Puzzle | **Difficulty:** Medium
+
+**How to Play:**
+- Slide tiles to merge matching numbers
+- Combine tiles to reach 2048
+- Game ends when no moves are available
+- **Controls:** Arrow keys (↑ ↓ ← →)
+
+**Tips:**
+- Keep highest number in a corner
+- Build along one edge
+- Plan several moves ahead
+
+#### 14. 🧠 Memory Match
+**Category:** Puzzle | **Difficulty:** Easy
+
+**How to Play:**
+- Flip cards to find matching pairs
+- Match all pairs to win
+- Fewer moves = better score
+- **Controls:** Mouse click to flip cards
+
+**Tips:**
+- Remember card positions
+- Start from corners
+- Fewer attempts = higher reward
+
+#### 15. 🌀 Maze
+**Category:** Puzzle | **Difficulty:** Easy
+
+**How to Play:**
+- Navigate through the maze
+- Find the exit as fast as possible
+- Avoid dead ends
+- **Controls:** Arrow keys (↑ ↓ ← →)
+
+**Tips:**
+- Follow one wall (left or right)
+- Mark paths you've tried
+- Stay calm and methodical
+
+#### 16. 🎨 Color Switch
+**Category:** Puzzle | **Difficulty:** Medium
+
+**How to Play:**
+- Pass through obstacles matching your color
+- Color changes as you progress
+- Timing is everything!
+- **Controls:** Mouse click or spacebar to jump
+
+**Tips:**
+- Watch color patterns
+- Time your movements
+- Stay focused on matching colors
+
+### 📝 Word Games
+
+#### 17. 🔤 Wordle
+**Category:** Word | **Difficulty:** Hard
+
+**How to Play:**
+- Guess the 5-letter word in 6 tries
+- Green = correct letter & position
+- Yellow = correct letter, wrong position
+- Gray = letter not in word
+- **Controls:** Keyboard to type, Enter to submit
+
+**Tips:**
+- Start with common vowels
+- Use process of elimination
+- Think strategically about each guess
+
+### ♟️ Strategy Games
+
+#### 18. ⭕ Tic Tac Toe
+**Category:** Strategy | **Difficulty:** Easy
+
+**How to Play:**
+- Take turns placing X or O on grid
+- Get 3 in a row to win (horizontal, vertical, or diagonal)
+- Block your opponent's winning moves
+- **Controls:** Mouse click to place mark
+
+**Tips:**
+- Take center if available
+- Create forks (two winning lines)
+- Block opponent's threats
 
 ---
 
@@ -215,11 +407,12 @@ ESC      : Quit game
 | 👥 Add a friend | +10 |
 
 ### How to Spend Coins
-*(Shop coming soon!)*
-- 🎨 Avatar customization
-- 🎮 Unlock premium games
-- 🏅 Special badges
-- 🎁 Power-ups
+
+Visit the **Shop** to spend your hard-earned coins:
+- 🎨 Avatar customization items
+- 🎮 Unlock special game modes
+- 🏅 Exclusive badges and titles
+- 🎁 Power-ups and boosters
 
 ---
 
