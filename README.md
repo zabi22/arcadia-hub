@@ -8,9 +8,9 @@
 ![Flask](https://img.shields.io/badge/Flask-3.0-green?style=for-the-badge&logo=flask)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple?style=for-the-badge&logo=bootstrap)
 ![SQLite](https://img.shields.io/badge/SQLite-3.0-orange?style=for-the-badge&logo=sqlite)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
-**🔴 LIVE DEMO:** [arcadia-hub.onrender.com](https://arcadia-hub.onrender.com) *(Coming Soon!)*
+
+**🔴 LIVE:** [arcadia-hub.online]*
 
 </div>
 
@@ -93,7 +93,7 @@
 <img src="https://via.placeholder.com/600x300/1a1a2e/00d4ff?text=Registration+Screen" alt="Registration" width="600"/>
 </div>
 
-1. Visit **[Arcadia Hub](https://arcadia-hub.onrender.com)**
+1. Visit **[Arcadia Hub](https://arcadia-hub.online)**
 2. Click **"Register"** on the login page
 3. Enter your username, email, and password
 4. Click **"Create Account"**
@@ -436,52 +436,6 @@ Visit the **Shop** to spend your hard-earned coins:
 
 ---
 
-## 🚀 Getting Started
-
-### Local Development
-
-#### Prerequisites
-- Python 3.11+
-- pip (Python package manager)
-- Git
-
-#### Installation
-
-**1. Clone the Repository**
-```bash
-git clone https://github.com/zabi22/arcadia-hub.git
-cd arcadia-hub
-```
-
-**2. Install Dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-**3. Run the Application**
-
-*Mac/Linux:*
-```bash
-./start.sh
-```
-
-*Windows:*
-```cmd
-start.bat
-```
-
-*Manual:*
-```bash
-python app.py
-```
-
-**4. Open Your Browser**
-```
-http://localhost:5000
-```
-
----
-
 
 
 ## 👨‍💻 Author
@@ -493,19 +447,12 @@ http://localhost:5000
 
 > *"Built this gaming platform to learn full-stack development and share my passion for coding!"*
 
----
-
-## 📄 License
-
-This project is open source under the **MIT License**. Feel free to use, modify, and distribute.
-
----
 
 <div align="center">
 
 ### 🎮 Ready to Play?
 
-**[🚀 Launch Arcadia Hub Now!](https://arcadia-hub.onrender.com)**
+**[🚀 Launch Arcadia Hub Now!](https://arcadia-hub.online)**
 
 Made with ❤️ by a 15-year-old developer
 

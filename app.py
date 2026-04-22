@@ -10,6 +10,19 @@ import os
 import logging
 from authlib.integrations.flask_client import OAuth
 
+import sqlite3
+
+conn = sqlite3.connect("database.db")
+cursor = conn.cursor()
+
+try:
+    cursor.execute("ALTER TABLE achievements ADD COLUMN achievement_key TEXT")
+except:
+    pass  # ignore if it already exists
+
+conn.commit()
+conn.close()
+
 try:
     import bcrypt
     HAS_BCRYPT = True
