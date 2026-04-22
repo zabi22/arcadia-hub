@@ -344,7 +344,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+            <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">
                 <i class="bi bi-controller"></i> ARCADIA HUB
             </a>
             
@@ -356,23 +356,28 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                        <a class="nav-link" href="{{ url_for('main.dashboard') }}">
                             <i class="bi bi-speedometer2"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('games') }}">
+                        <a class="nav-link" href="{{ url_for('main.games') }}">
                             <i class="bi bi-joystick"></i> Games
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('leaderboard') }}">
+                        <a class="nav-link" href="{{ url_for('main.leaderboard') }}">
                             <i class="bi bi-trophy"></i> Leaderboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('friends') }}">
+                        <a class="nav-link" href="{{ url_for('main.friends') }}">
                             <i class="bi bi-people"></i> Friends
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.chat') }}">
+                            <i class="bi bi-chat-dots"></i> Chat
                         </a>
                     </li>
                 </ul>
@@ -383,20 +388,20 @@
                             <i class="bi bi-person-circle"></i> {{ session.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{{ url_for('profile') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('main.profile') }}">
                                 <i class="bi bi-person"></i> Profile
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('shop') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('main.shop') }}">
                                 <i class="bi bi-shop"></i> Shop
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('inventory') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('main.inventory') }}">
                                 <i class="bi bi-bag"></i> Inventory
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('settings') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('main.settings') }}">
                                 <i class="bi bi-gear"></i> Settings
                             </a></li>
                             <li><hr class="dropdown-divider" style="border-color: var(--card-border);"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
                                 <i class="bi bi-box-arrow-right"></i> Logout
                             </a></li>
                         </ul>

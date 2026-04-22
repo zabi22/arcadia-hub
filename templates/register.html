@@ -12,7 +12,7 @@
                 <p class="text-white-50">Create your account and start playing!</p>
             </div>
             
-            <form method="POST" action="{{ url_for('register') }}">
+            <form method="POST" action="{{ url_for('auth.register') }}">
                 <div class="mb-3">
                     <label for="username" class="form-label text-white">Username</label>
                     <input type="text" class="form-control bg-dark text-white border-secondary" 
@@ -40,7 +40,7 @@
             
             <div class="text-center mt-4">
                 <p class="text-white-50 mb-0">Already have an account?</p>
-                <a href="{{ url_for('login') }}" class="text-white fw-bold">Login here</a>
+                <a href="{{ url_for('auth.login') }}" class="text-white fw-bold">Login here</a>
             </div>
         </div>
     </div>

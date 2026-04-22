@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Error {{ code | default(500) }} - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 text-center">
+        <div class="card p-5">
+            <h1 class="display-1 text-accent mb-4">
+                <i class="bi bi-exclamation-triangle"></i>
+            </h1>
+            <h2 class="text-white mb-3">
+                Error {{ code | default(500) }}
+            </h2>
+            <p class="text-white-50 mb-4">
+                {% if code == 404 %}
+                    The page you're looking for doesn't exist or has been moved.
+                {% elif code == 500 %}
+                    Something went wrong on our end. Please try again later.
+                {% else %}
+                    {{ error | default('An unexpected error occurred') }}
+                {% endif %}
+            </p>
+            <div class="d-flex gap-3 justify-content-center">
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-accent">
+                    <i class="bi bi-house-door"></i> Go to Dashboard
+                </a>
+                <a href="javascript:history.back()" class="btn btn-outline-light">
+                    <i class="bi bi-arrow-left"></i> Go Back
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

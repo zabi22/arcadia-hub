@@ -1,39 +1,11 @@
-# Database
-# *.db
-# *.sqlite
-# *.sqlite3
-
-# Python
+*.pyc
 __pycache__/
-*.py[cod]
-*$py.class
-
-# IDEs
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Virtual Environment
-.venv/
-env/
-venv/
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-
-# Environments
-.env
-
-# Secrets
-instance/
-secrets/
-
-# Logs
+*.db
 *.log
-
-# OS
-.DS_Store
-Thumbs.db
+logs/
+.env
+.venv/
+instance/
+migrations/
+*.sqlite
+*.sqlite3

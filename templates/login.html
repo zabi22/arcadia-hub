@@ -12,7 +12,7 @@
                 <p class="text-white-50">Login to continue your gaming journey</p>
             </div>
             
-            <form method="POST" action="{{ url_for('login') }}">
+            <form method="POST" action="{{ url_for('auth.login') }}">
                 <div class="mb-3">
                     <label for="username" class="form-label text-white">Username or Email</label>
                     <input type="text" class="form-control bg-dark text-white border-secondary" 
@@ -36,7 +36,7 @@
                     <hr class="border-secondary">
                     <span class="position-absolute top-50 start-50 translate-middle bg-dark px-3 text-white-50">or</span>
                 </div>
-                <a href="{{ url_for('google_login') }}" class="btn btn-outline-light w-100 py-2">
+                <a href="{{ url_for('auth.google_login') }}" class="btn btn-outline-light w-100 py-2">
                     <i class="bi bi-google"></i> Continue with Google
                 </a>
             </div>
@@ -44,7 +44,7 @@
             
             <div class="text-center mt-4">
                 <p class="text-white-50 mb-0">Don't have an account?</p>
-                <a href="{{ url_for('register') }}" class="text-white fw-bold">Register here</a>
+                <a href="{{ url_for('auth.register') }}" class="text-white fw-bold">Register here</a>
             </div>
         </div>
     </div>

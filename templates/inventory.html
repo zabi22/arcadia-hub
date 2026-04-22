@@ -9,17 +9,38 @@
     </div>
 </div>
 
-{% if items %}
-<div class="row g-3">
-    {% for item in items %}
+{% if inventory %}
+<div class="row g-4">
+    {% for item in inventory %}
     <div class="col-md-4 col-sm-6">
-        <div class="card bg-dark border-success h-100 p-3">
-            <div class="text-center mb-3" style="font-size: 3rem;">{{ item.icon }}</div>
-            <h5 class="text-white mb-2">{{ item.name }}</h5>
-            <p class="text-white-50 small mb-2">{{ item.description }}</p>
-            <small class="text-info">Acquired: {{ item.acquired_at[:10] }}</small>
-            {% if item.type == 'avatar_skin' %}
-            <button class="btn btn-sm btn-outline-light mt-2 equip-btn" data-item-id="{{ item.id }}">
+        <div class="card game-card h-100 p-4 {% if item.is_equipped %}border-success{% endif %}">
+            {% if item.is_equipped %}
+            <div class="position-absolute top-0 end-0 m-2">
+                <span class="badge bg-success">Equipped</span>
+            </div>
+            {% endif %}
+            
+            <div class="text-center mb-3">
+                <div style="font-size: 4rem;">{{ item.icon }}</div>
+                <h5 class="text-white mb-2">{{ item.name }}</h5>
+                <p class="text-white-50 mb-3">{{ item.description }}</p>
+            </div>
+            
+            <div class="mb-3">
+                <span class="badge bg-{{ 'secondary' if item.type == 'powerup' else 'primary' if item.type == 'avatar_skin' else 'warning' }}">
+                    {{ item.type.replace('_', ' ').title() }}
+                </span>
+                <small class="text-white-50 ms-2">
+                    Acquired: {{ item.acquired_at.strftime('%Y-%m-%d') if item.acquired_at else 'Unknown' }}
+                </small>
+            </div>
+            
+            {% if item.is_equipped %}
+            <button class="btn btn-outline-success w-100 unequip-btn" data-item-id="{{ item.item_id }}">
+                <i class="bi bi-x-circle"></i> Unequip
+            </button>
+            {% else %}
+            <button class="btn btn-accent w-100 equip-btn" data-item-id="{{ item.item_id }}">
                 <i class="bi bi-check-circle"></i> Equip
             </button>
             {% endif %}
@@ -28,30 +49,102 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="card bg-dark border-secondary p-5 text-center">
-    <h4 class="text-white mb-3">Your inventory is empty!</h4>
-    <p class="text-white-50 mb-4">Visit the shop to buy cool items and power-ups</p>
-    <a href="{{ url_for('shop') }}" class="btn btn-accent">
-        <i class="bi bi-shop"></i> Go to Shop
-    </a>
-</div>
-{% endif %}
-
-<div class="row mt-4">
+<div class="row">
     <div class="col-md-12">
-        <a href="{{ url_for('shop') }}" class="btn btn-outline-light">
-            <i class="bi bi-cart-plus"></i> Continue Shopping
-        </a>
+        <div class="card p-5 text-center">
+            <i class="bi bi-bag-x" style="font-size: 4rem; color: var(--neon-blue);"></i>
+            <h3 class="text-white mt-3">Your inventory is empty</h3>
+            <p class="text-white-50 mb-4">Visit the shop to purchase items!</p>
+            <a href="{{ url_for('main.shop') }}" class="btn btn-accent">
+                <i class="bi bi-shop"></i> Go to Shop
+            </a>
+        </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('.equip-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        alert('✅ Avatar equipped!');
+document.addEventListener('DOMContentLoaded', function() {
+    // Equip button clicks
+    document.querySelectorAll('.equip-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const itemId = this.dataset.itemId;
+            
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Equipping...';
+            
+            try {
+                const response = await fetch('{{ url_for("main.equip") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ item_id: itemId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('success', data.message);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', data.message);
+                }
+            } catch (error) {
+                showAlert('danger', 'Failed to equip item.');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-check-circle"></i> Equip';
+            }
+        });
     });
+    
+    // Unequip button clicks
+    document.querySelectorAll('.unequip-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const itemId = this.dataset.itemId;
+            
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Unequipping...';
+            
+            try {
+                const response = await fetch('{{ url_for("main.unequip") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ item_id: itemId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('success', data.message);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', data.message);
+                }
+            } catch (error) {
+                showAlert('danger', 'Failed to unequip item.');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-x-circle"></i> Unequip';
+            }
+        });
+    });
+    
+    function showAlert(type, message) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('main .container').insertAdjacentElement('afterbegin', alert);
+    }
 });
 </script>
 {% endblock %}

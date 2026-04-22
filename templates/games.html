@@ -12,7 +12,7 @@
 <div class="row g-4">
     {% for game in games %}
     <div class="col-md-4 col-sm-6">
-        <a href="{{ url_for('play_game', game_key=game.game_key) }}" 
+        <a href="{{ url_for('main.play_game', game_key=game.game_key) }}" 
            class="text-decoration-none">
             <div class="card game-card h-100 p-4 text-center">
                 <div style="font-size: 4rem;" class="mb-3">{{ game.icon }}</div>

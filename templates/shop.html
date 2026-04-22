@@ -4,112 +4,161 @@
 
 {% block content %}
 <div class="row mb-4">
-    <div class="col-md-12">
-        <div class="d-flex justify-content-between align-items-center">
-            <h2 class="text-white mb-0"><i class="bi bi-shop"></i> Shop</h2>
-            <div class="text-white">
-                <h4 class="mb-0">💰 Coins: <span class="text-warning">{{ user.coins }}</span></h4>
-            </div>
+    <div class="col-md-8">
+        <h2 class="text-white mb-3"><i class="bi bi-shop"></i> Shop</h2>
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="card d-inline-block p-3">
+            <h4 class="text-white mb-0">
+                <i class="bi bi-coin" style="color: #ffd700;"></i> {{ user.coins }}
+            </h4>
+            <small class="text-white-50">Your Coins</small>
         </div>
     </div>
 </div>
 
-{% for category, category_name in [('power', 'Power-ups'), ('avatar', 'Avatar Skins'), ('badge', 'Badges')] %}
-    {% if category in items_by_category %}
-    <div class="mb-4">
-        <h4 class="text-white mb-3"><i class="bi bi-collection"></i> {{ category_name }}</h4>
-        <div class="row g-3">
-            {% for item in items_by_category[category] %}
-            <div class="col-md-4 col-sm-6">
-                <div class="card bg-dark border-secondary h-100 p-3 shop-item">
-                    <div class="text-center mb-3" style="font-size: 4rem;">{{ item.icon }}</div>
-                    <h5 class="text-white mb-2">{{ item.name }}</h5>
-                    <p class="text-white-50 small mb-3">{{ item.description }}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-warning fw-bold">💰 {{ item.price }}</span>
-                        <button class="btn btn-sm btn-accent purchase-btn" data-item-id="{{ item.id }}" data-item-name="{{ item.name }}">
-                            <i class="bi bi-cart-plus"></i> Buy
-                        </button>
-                    </div>
+<!-- Category Filter -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('main.shop') }}" class="btn btn-{{ 'accent' if not current_category else 'outline-light' }}">
+                All Items
+            </a>
+            <a href="{{ url_for('main.shop', category='power') }}" class="btn btn-{{ 'accent' if current_category == 'power' else 'outline-light' }}">
+                <i class="bi bi-lightning"></i> Power-ups
+            </a>
+            <a href="{{ url_for('main.shop', category='avatar') }}" class="btn btn-{{ 'accent' if current_category == 'avatar' else 'outline-light' }}">
+                <i class="bi bi-person"></i> Avatars
+            </a>
+            <a href="{{ url_for('main.shop', category='badge') }}" class="btn btn-{{ 'accent' if current_category == 'badge' else 'outline-light' }}">
+                <i class="bi bi-award"></i> Badges
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Shop Items -->
+<div class="row g-4">
+    {% for item_id, item in shop_items.items() %}
+    <div class="col-md-4 col-sm-6">
+        <div class="card game-card h-100 p-4">
+            <div class="text-center mb-3">
+                <div style="font-size: 4rem;">{{ item.icon }}</div>
+                <h5 class="text-white mb-2">{{ item.name }}</h5>
+                <p class="text-white-50 mb-3">{{ item.description }}</p>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center mt-auto">
+                <div>
+                    <span class="badge bg-{{ 'secondary' if item.type == 'powerup' else 'primary' if item.type == 'avatar_skin' else 'warning' }}">
+                        {{ item.type.replace('_', ' ').title() }}
+                    </span>
+                </div>
+                <div class="text-end">
+                    <h5 class="text-white mb-0">
+                        <i class="bi bi-coin" style="color: #ffd700;"></i> {{ item.price }}
+                    </h5>
                 </div>
             </div>
-            {% endfor %}
+            
+            <button class="btn btn-accent w-100 mt-3 purchase-btn" 
+                    data-item-id="{{ item_id }}"
+                    data-item-name="{{ item.name }}"
+                    data-item-price="{{ item.price }}">
+                <i class="bi bi-cart"></i> Purchase
+            </button>
         </div>
     </div>
-    {% endif %}
-{% endfor %}
-
-<div class="row mt-4">
-    <div class="col-md-12">
-        <a href="{{ url_for('inventory') }}" class="btn btn-outline-light">
-            <i class="bi bi-bag-check"></i> View Inventory
-        </a>
-    </div>
+    {% endfor %}
 </div>
 
-{% endblock %}
-
-{% block extra_css %}
-<style>
-.shop-item {
-    transition: transform 0.3s, box-shadow 0.3s;
-    border-radius: 15px;
-}
-
-.shop-item:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
-}
-
-.purchase-btn {
-    transition: all 0.2s;
-}
-
-.purchase-btn:hover {
-    transform: scale(1.05);
-}
-
-.purchase-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-</style>
+<!-- Purchase Confirmation Modal -->
+<div class="modal fade" id="purchaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background: var(--card-bg); border: 1px solid var(--card-border);">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Confirm Purchase</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-white">Purchase <strong id="modalItemName"></strong> for <strong id="modalItemPrice"></strong> coins?</p>
+                <p class="text-white-50">Your balance after purchase: <strong id="modalBalanceAfter"></strong> coins</p>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-accent" id="confirmPurchaseBtn">Confirm Purchase</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('.purchase-btn').forEach(btn => {
-    btn.addEventListener('click', async function() {
-        const itemId = this.dataset.itemId;
-        const itemName = this.dataset.itemName;
-        const originalText = this.innerHTML;
+document.addEventListener('DOMContentLoaded', function() {
+    const purchaseModal = new bootstrap.Modal(document.getElementById('purchaseModal'));
+    let selectedItem = null;
+    
+    // Purchase button clicks
+    document.querySelectorAll('.purchase-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            selectedItem = {
+                id: this.dataset.itemId,
+                name: this.dataset.itemName,
+                price: parseInt(this.dataset.itemPrice)
+            };
+            
+            document.getElementById('modalItemName').textContent = selectedItem.name;
+            document.getElementById('modalItemPrice').textContent = selectedItem.price;
+            document.getElementById('modalBalanceAfter').textContent = {{ user.coins }} - selectedItem.price;
+            
+            purchaseModal.show();
+        });
+    });
+    
+    // Confirm purchase
+    document.getElementById('confirmPurchaseBtn').addEventListener('click', async function() {
+        if (!selectedItem) return;
         
         this.disabled = true;
-        this.innerHTML = '<i class="bi bi-hourglass"></i> Processing...';
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
         
         try {
-            const response = await fetch('/api/shop/purchase', {
+            const response = await fetch('{{ url_for("main.purchase") }}', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({item_id: itemId})
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ item_id: selectedItem.id })
             });
             
             const data = await response.json();
             
             if (data.success) {
-                alert(`✅ ${data.message}`);
-                location.reload();
+                showAlert('success', data.message);
+                setTimeout(() => location.reload(), 1500);
             } else {
-                alert(`❌ ${data.error}`);
-                this.disabled = false;
-                this.innerHTML = originalText;
+                showAlert('danger', data.message);
             }
         } catch (error) {
-            alert('Purchase failed. Try again!');
+            showAlert('danger', 'Purchase failed. Please try again.');
+        } finally {
             this.disabled = false;
-            this.innerHTML = originalText;
+            this.innerHTML = 'Confirm Purchase';
+            purchaseModal.hide();
         }
     });
+    
+    function showAlert(type, message) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('main .container').insertAdjacentElement('afterbegin', alert);
+    }
 });
 </script>
 {% endblock %}

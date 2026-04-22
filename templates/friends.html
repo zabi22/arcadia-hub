@@ -9,69 +9,95 @@
     </div>
 </div>
 
-<div class="row g-4">
-    <!-- Friend Requests -->
-    {% if pending %}
+<!-- Friend Requests -->
+{% if friend_requests %}
+<div class="row g-4 mb-4">
     <div class="col-md-12">
         <div class="card p-4">
-            <h4 class="text-white mb-3"><i class="bi bi-envelope"></i> Pending Requests</h4>
+            <h4 class="text-white mb-3">
+                <i class="bi bi-envelope"></i> Pending Requests ({{ friend_requests|length }})
+            </h4>
             <div class="list-group">
-                {% for user in pending %}
-                <div class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center">
+                {% for request in friend_requests %}
+                <div class="list-group-item bg-dark border-secondary d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="mb-0">{{ user.username }}</h6>
-                        <small class="text-white-50">{{ user.email }}</small>
+                        <h6 class="text-white mb-0">{{ request.sender_username }}</h6>
+                        <small class="text-white-50">Sent {{ request.created_at.strftime('%Y-%m-%d') if request.created_at else 'Recently' }}</small>
                     </div>
-                    <div>
-                        <button class="btn btn-sm btn-success me-2">Accept</button>
-                        <button class="btn btn-sm btn-danger">Decline</button>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-success accept-btn" data-request-id="{{ request.request_id }}">
+                            <i class="bi bi-check"></i> Accept
+                        </button>
+                        <button class="btn btn-sm btn-danger reject-btn" data-request-id="{{ request.request_id }}">
+                            <i class="bi bi-x"></i> Reject
+                        </button>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
     </div>
-    {% endif %}
-    
-    <!-- Friends List -->
+</div>
+{% endif %}
+
+<!-- Search Users -->
+<div class="row g-4 mb-4">
     <div class="col-md-12">
         <div class="card p-4">
-            <h4 class="text-white mb-3"><i class="bi bi-heart"></i> Your Friends ({{ friends|length }})</h4>
+            <h4 class="text-white mb-3"><i class="bi bi-search"></i> Add Friends</h4>
+            <div class="input-group mb-3">
+                <input type="text" class="form-control bg-dark text-white border-secondary" 
+                       id="searchInput" 
+                       placeholder="Search by username..." 
+                       minlength="2">
+                <button class="btn btn-accent" type="button" id="searchBtn">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Friends List -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card p-4">
+            <h4 class="text-white mb-3">
+                <i class="bi bi-people-fill"></i> My Friends ({{ friends|length }})
+            </h4>
             {% if friends %}
             <div class="row g-3">
                 {% for friend in friends %}
                 <div class="col-md-4 col-sm-6">
-                    <div class="card bg-dark border-secondary p-3 text-center">
-                        <div class="avatar-placeholder mb-2 mx-auto" style="width: 60px; height: 60px; font-size: 1.5rem;">
-                            {{ friend.username[0].upper() }}
+                    <div class="card bg-dark border-secondary p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white mb-0">
+                                    {{ friend.username }}
+                                    {% if friend.is_online %}
+                                    <span class="badge bg-success">Online</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Offline</span>
+                                    {% endif %}
+                                </h6>
+                                <small class="text-white-50">
+                                    {% if friend.last_seen %}
+                                        Last seen: {{ friend.last_seen.strftime('%Y-%m-%d %H:%M') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger remove-btn" data-user-id="{{ friend.user_id }}">
+                                <i class="bi bi-person-x"></i>
+                            </button>
                         </div>
-                        <h6 class="text-white mb-1">{{ friend.username }}</h6>
-                        <small class="text-white-50">{{ friend.coins }} coins</small>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <p class="text-white-50 text-center">No friends yet. Add some friends to compete with!</p>
+            <p class="text-white-50 text-center">You don't have any friends yet. Search for users above!</p>
             {% endif %}
-        </div>
-    </div>
-    
-    <!-- Add Friend -->
-    <div class="col-md-12">
-        <div class="card p-4">
-            <h4 class="text-white mb-3"><i class="bi bi-person-plus"></i> Add Friend</h4>
-            <form id="addFriendForm" class="row g-3">
-                <div class="col-auto">
-                    <input type="text" class="form-control bg-dark text-white border-secondary" 
-                           id="friendUsername" placeholder="Enter username" required>
-                </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-accent">
-                        <i class="bi bi-person-plus"></i> Send Request
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
@@ -79,27 +105,164 @@
 
 {% block extra_js %}
 <script>
-document.getElementById('addFriendForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const username = document.getElementById('friendUsername').value;
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchResults = document.getElementById('searchResults');
     
-    try {
-        const response = await fetch('/api/friend/request', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({username})
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(data.message);
-            document.getElementById('friendUsername').value = '';
-        } else {
-            alert('Error: ' + data.error);
+    // Search users
+    searchBtn.addEventListener('click', performSearch);
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') performSearch();
+    });
+    
+    async function performSearch() {
+        const query = searchInput.value.trim();
+        if (query.length < 2) {
+            searchResults.innerHTML = '<p class="text-white-50">Enter at least 2 characters</p>';
+            return;
         }
-    } catch (error) {
-        alert('Failed to send request');
+        
+        searchResults.innerHTML = '<p class="text-white-50">Searching...</p>';
+        
+        try {
+            const response = await fetch(`{{ url_for('main.search_friends') }}?q=${query}`);
+            const data = await response.json();
+            
+            if (data.users && data.users.length > 0) {
+                searchResults.innerHTML = data.users.map(user => `
+                    <div class="list-group-item bg-dark border-secondary d-flex justify-content-between align-items-center">
+                        <span class="text-white">${user.username}</span>
+                        <button class="btn btn-sm btn-accent add-friend-btn" data-user-id="${user.user_id}">
+                            <i class="bi bi-person-plus"></i> Add Friend
+                        </button>
+                    </div>
+                `).join('');
+                
+                // Add event listeners to new buttons
+                document.querySelectorAll('.add-friend-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const userId = this.dataset.userId;
+                        await sendFriendRequest(userId, this);
+                    });
+                });
+            } else {
+                searchResults.innerHTML = '<p class="text-white-50">No users found</p>';
+            }
+        } catch (error) {
+            searchResults.innerHTML = '<p class="text-danger">Search failed</p>';
+        }
+    }
+    
+    async function sendFriendRequest(userId, button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        
+        try {
+            const response = await fetch('{{ url_for("main.add_friend") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert('success', data.message);
+                button.innerHTML = '<i class="bi bi-check"></i> Sent';
+                button.classList.remove('btn-accent');
+                button.classList.add('btn-secondary');
+            } else {
+                showAlert('danger', data.message);
+                button.disabled = false;
+                button.innerHTML = '<i class="bi bi-person-plus"></i> Add Friend';
+            }
+        } catch (error) {
+            showAlert('danger', 'Failed to send request');
+            button.disabled = false;
+            button.innerHTML = '<i class="bi bi-person-plus"></i> Add Friend';
+        }
+    }
+    
+    // Accept friend request
+    document.querySelectorAll('.accept-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const requestId = this.dataset.requestId;
+            await handleFriendRequest(requestId, 'accept', this);
+        });
+    });
+    
+    // Reject friend request
+    document.querySelectorAll('.reject-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const requestId = this.dataset.requestId;
+            await handleFriendRequest(requestId, 'reject', this);
+        });
+    });
+    
+    async function handleFriendRequest(requestId, action, button) {
+        button.disabled = true;
+        const endpoint = action === 'accept' ? '{{ url_for("main.accept_friend") }}' : '{{ url_for("main.reject_friend") }}';
+        
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ request_id: requestId })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert('success', data.message);
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('danger', data.message);
+                button.disabled = false;
+            }
+        } catch (error) {
+            showAlert('danger', 'Request failed');
+            button.disabled = false;
+        }
+    }
+    
+    // Remove friend
+    document.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if (!confirm('Remove this friend?')) return;
+            
+            const userId = this.dataset.userId;
+            
+            try {
+                const response = await fetch('{{ url_for("main.remove_friend") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('success', data.message);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', data.message);
+                }
+            } catch (error) {
+                showAlert('danger', 'Failed to remove friend');
+            }
+        });
+    });
+    
+    function showAlert(type, message) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('main .container').insertAdjacentElement('afterbegin', alert);
     }
 });
 </script>
