@@ -10,7 +10,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-3.0-orange?style=for-the-badge&logo=sqlite)
 
 
-**🔴 LIVE:** [arcadia-hub.online]*
+**🔴 LIVE:** [www.arcadia-hub.online]*
 
 </div>
 
