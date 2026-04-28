@@ -38,7 +38,8 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///gaming_app.db')
+    # Explicitly force SQLite for development, ignoring DATABASE_URL from .env
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///gaming_app.db'
     SESSION_COOKIE_SECURE = False
 
 

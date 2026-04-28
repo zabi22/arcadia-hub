@@ -41,7 +41,6 @@ def create_app(config_name=None):
     # Load configuration
     app.config.from_object(config[config_name])
 
-
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
