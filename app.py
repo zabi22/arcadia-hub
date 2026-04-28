@@ -36,7 +36,10 @@ def create_app(config_name=None):
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
 
-    app = Flask(__name__)
+    # Explicitly point to the src/templates directory
+    app = Flask(__name__, 
+                template_folder='src/templates',
+                static_folder='src/static')
 
     # Load configuration
     app.config.from_object(config[config_name])
