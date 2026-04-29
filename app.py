@@ -10,7 +10,7 @@ from src.utils.config import config
 from src.utils.logger import setup_logger
 from src.routes.auth_routes import auth_bp, init_oauth
 from src.routes.main_routes import main_bp
-from src.services.game_service import seed_games
+from src.services.game_service import seed_games, get_game_config
 from src.services.challenge_service import generate_daily_challenges
 from src.services.chat_service import register_socket_events
 from src.services.multiplayer_service import register_multiplayer_events # New import
@@ -116,6 +116,9 @@ def create_app(config_name=None):
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
 
+    # Register Jinja2 filters
+    app.jinja_env.filters['game_config'] = get_game_config
+
     # Error handlers
     @app.errorhandler(404)
     def not_found_error(error):
@@ -131,15 +134,22 @@ def create_app(config_name=None):
         app.logger.error(f"500 error: {error}")
         return render_template('error.html', error='Internal server error', code=500), 500
 
-    # Initialize database
+    # Initialize database (addresses 2, 1)
     with app.app_context():
         try:
             from sqlalchemy import inspect
             inspector = inspect(db.engine)
             if 'users' not in inspector.get_table_names():
                 db.create_all()
-            seed_games()
-            generate_daily_challenges()
+            # Only seed games if the table exists and has the required columns
+            try:
+                seed_games()
+            except Exception as seed_e:
+                app.logger.warning(f"Game seeding failed (likely missing columns): {seed_e}")
+            try:
+                generate_daily_challenges()
+            except Exception as challenge_e:
+                app.logger.warning(f"Challenge generation failed: {challenge_e}")
         except Exception as e:
             app.logger.error(f"DB init failed: {e}")
             db.session.rollback()

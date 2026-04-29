@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.name }} - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card p-4">
+            <div class="row">
+                <div class="col-md-8">
+                    <h3 class="text-white mb-2">{{ game.icon }} {{ game.name }}</h3>
+                    <p class="text-white-50 mb-4">Dodge the falling obstacles! Last player standing wins.</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="card bg-dark d-inline-block p-2">
+                        <small class="text-white-50">Room</small>
+                        <h5 class="text-accent mb-0" id="roomCode">Loading...</h5>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Status -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card bg-dark p-3">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <h6 class="text-info">Status</h6>
+                                <span id="gameStatus" class="badge bg-secondary">Waiting for players</span>
+                            </div>
+                            <div class="col-4">
+                                <h6 class="text-warning">Players Alive</h6>
+                                <span id="aliveCount">0/2</span>
+                            </div>
+                            <div class="col-4">
+                                <h6 class="text-danger">Time Left</h6>
+                                <span id="timeLeft">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Area -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card bg-dark p-3">
+                        <canvas id="gameCanvas" width="600" height="400" style="border: 2px solid #333; display: block; margin: 0 auto;"></canvas>
+                        <div class="text-center mt-3">
+                            <p class="text-white-50 mb-2">Use arrow keys or WASD to move</p>
+                            <div id="controls" style="display: none;">
+                                <button class="btn btn-outline-light me-2" id="leftBtn">←</button>
+                                <button class="btn btn-outline-light me-2" id="upBtn">↑</button>
+                                <button class="btn btn-outline-light me-2" id="downBtn">↓</button>
+                                <button class="btn btn-outline-light" id="rightBtn">→</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Players List -->
+                <div class="col-md-4">
+                    <div class="card bg-dark p-3">
+                        <h5 class="text-white mb-3">Players</h5>
+                        <div id="playersList">
+                            <div class="text-center text-white-50">Waiting for players...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Results -->
+            <div id="gameResults" class="row" style="display: none;">
+                <div class="col-md-12">
+                    <div class="card bg-success p-4 text-center">
+                        <h4 class="text-white mb-3">Game Over!</h4>
+                        <div id="resultsContent"></div>
+                        <button class="btn btn-accent mt-3" onclick="location.reload()">Play Again</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Socket.IO -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    const socket = io();
+    let roomCode = null;
+    let gameState = 'waiting';
+    let players = {};
+    let myPlayerId = null;
+    let canvas, ctx;
+    let obstacles = [];
+    let playerPosition = { x: 300, y: 350 };
+    let keys = {};
+    let gameLoop;
+
+    // Initialize canvas
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
+
+    // Get room code from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    roomCode = urlParams.get('room');
+
+    if (roomCode) {
+        $('#roomCode').text(roomCode);
+        socket.emit('join_room', { room_code: roomCode });
+    }
+
+    // Socket events
+    socket.on('room_joined', function(data) {
+        players = {};
+        data.players.forEach(player => {
+            players[player.user_id] = {
+                username: player.username,
+                is_ready: player.is_ready,
+                alive: true,
+                position: { x: Math.random() * 500 + 50, y: 350 }
+            };
+        });
+        updatePlayersList();
+        $('#gameStatus').text('Waiting to start').removeClass('bg-secondary').addClass('bg-warning');
+    });
+
+    socket.on('game_starting', function(data) {
+        gameState = 'playing';
+        $('#gameStatus').text('Playing').removeClass('bg-warning').addClass('bg-success');
+        startGame();
+    });
+
+    socket.on('player_eliminated', function(data) {
+        if (players[data.user_id]) {
+            players[data.user_id].alive = false;
+        }
+        updatePlayersList();
+        $('#aliveCount').text(data.remaining_players + '/' + Object.keys(players).length);
+    });
+
+    socket.on('game_ended', function(data) {
+        gameState = 'ended';
+        endGame(data);
+    });
+
+    // Game functions
+    function startGame() {
+        obstacles = [];
+        gameLoop = setInterval(updateGame, 1000/60); // 60 FPS
+        spawnObstacle();
+        setInterval(spawnObstacle, 2000); // New obstacle every 2 seconds
+    }
+
+    function updateGame() {
+        if (gameState !== 'playing') return;
+
+        // Handle input
+        handleInput();
+
+        // Update obstacles
+        updateObstacles();
+
+        // Check collisions
+        checkCollisions();
+
+        // Draw everything
+        draw();
+    }
+
+    function handleInput() {
+        const speed = 5;
+        if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+            playerPosition.x = Math.max(20, playerPosition.x - speed);
+        }
+        if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+            playerPosition.x = Math.min(canvas.width - 20, playerPosition.x + speed);
+        }
+        if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+            playerPosition.y = Math.max(20, playerPosition.y - speed);
+        }
+        if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+            playerPosition.y = Math.min(canvas.height - 20, playerPosition.y + speed);
+        }
+    }
+
+    function spawnObstacle() {
+        const obstacle = {
+            x: Math.random() * (canvas.width - 40) + 20,
+            y: -20,
+            width: 20 + Math.random() * 20,
+            height: 20 + Math.random() * 20,
+            speed: 2 + Math.random() * 3
+        };
+        obstacles.push(obstacle);
+    }
+
+    function updateObstacles() {
+        obstacles.forEach(obstacle => {
+            obstacle.y += obstacle.speed;
+        });
+
+        // Remove off-screen obstacles
+        obstacles = obstacles.filter(obs => obs.y < canvas.height + 50);
+    }
+
+    function checkCollisions() {
+        obstacles.forEach(obstacle => {
+            if (playerPosition.x < obstacle.x + obstacle.width &&
+                playerPosition.x + 20 > obstacle.x &&
+                playerPosition.y < obstacle.y + obstacle.height &&
+                playerPosition.y + 20 > obstacle.y) {
+                // Collision detected
+                socket.emit('player_hit', { room_code: roomCode });
+                gameState = 'eliminated';
+                clearInterval(gameLoop);
+            }
+        });
+    }
+
+    function draw() {
+        // Clear canvas
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw player
+        ctx.fillStyle = '#00ff88';
+        ctx.fillRect(playerPosition.x - 10, playerPosition.y - 10, 20, 20);
+
+        // Draw other players
+        Object.keys(players).forEach(playerId => {
+            if (playerId != myPlayerId && players[playerId].alive) {
+                const pos = players[playerId].position;
+                ctx.fillStyle = '#ff6b6b';
+                ctx.fillRect(pos.x - 10, pos.y - 10, 20, 20);
+            }
+        });
+
+        // Draw obstacles
+        ctx.fillStyle = '#ff4444';
+        obstacles.forEach(obstacle => {
+            ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        });
+    }
+
+    function updatePlayersList() {
+        let html = '';
+        Object.keys(players).forEach(playerId => {
+            const player = players[playerId];
+            const status = player.alive ? 'alive' : 'eliminated';
+            const statusClass = player.alive ? 'text-success' : 'text-danger';
+            html += `<div class="d-flex justify-content-between mb-2">
+                <span class="text-white">${player.username}</span>
+                <span class="${statusClass}">${status}</span>
+            </div>`;
+        });
+        $('#playersList').html(html);
+        $('#aliveCount').text(Object.values(players).filter(p => p.alive).length + '/' + Object.keys(players).length);
+    }
+
+    function endGame(data) {
+        clearInterval(gameLoop);
+        $('#gameResults').show();
+        let resultsHtml = '<div class="row">';
+        Object.keys(data.scores).forEach(playerId => {
+            const player = players[playerId];
+            const score = data.scores[playerId];
+            const isWinner = playerId == data.winner_id;
+            resultsHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card ${isWinner ? 'bg-warning' : 'bg-dark'} p-3">
+                        <h5 class="${isWinner ? 'text-dark' : 'text-white'}">${player.username}</h5>
+                        <p class="${isWinner ? 'text-dark' : 'text-white-50'}">Score: ${score} ${isWinner ? '(Winner!)' : ''}</p>
+                    </div>
+                </div>
+            `;
+        });
+        resultsHtml += '</div>';
+        $('#resultsContent').html(resultsHtml);
+    }
+
+    // Keyboard events
+    $(document).keydown(function(e) {
+        keys[e.key] = true;
+    });
+
+    $(document).keyup(function(e) {
+        keys[e.key] = false;
+    });
+
+    // Mobile controls
+    $('#leftBtn').on('touchstart mousedown', function() { keys['ArrowLeft'] = true; });
+    $('#leftBtn').on('touchend mouseup', function() { keys['ArrowLeft'] = false; });
+    $('#rightBtn').on('touchstart mousedown', function() { keys['ArrowRight'] = true; });
+    $('#rightBtn').on('touchend mouseup', function() { keys['ArrowRight'] = false; });
+    $('#upBtn').on('touchstart mousedown', function() { keys['ArrowUp'] = true; });
+    $('#upBtn').on('touchend mouseup', function() { keys['ArrowUp'] = false; });
+    $('#downBtn').on('touchstart mousedown', function() { keys['ArrowDown'] = true; });
+    $('#downBtn').on('touchend mouseup', function() { keys['ArrowDown'] = false; });
+
+    // Show mobile controls on touch devices
+    if ('ontouchstart' in window) {
+        $('#controls').show();
+    }
+});
+</script>
+{% endblock %}

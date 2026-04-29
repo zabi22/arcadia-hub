@@ -10,6 +10,7 @@ GAME_CONFIGS = {
     "tictactoe": {"name": "Tic Tac Toe", "icon": "⭕", "color": "#00d4ff", "difficulty": "Easy"},
     "memory": {"name": "Memory Match", "icon": "🧠", "color": "#ff6b6b", "difficulty": "Medium"},
     "reaction": {"name": "Reaction Time", "icon": "⚡", "color": "#ffd700", "difficulty": "Medium"},
+    "reaction_multi": {"name": "Reaction Arena", "icon": "⚡", "color": "#ffd700", "difficulty": "Medium", "is_multiplayer": True},
     "wordle": {"name": "Word Guess", "icon": "🔤", "color": "#9b59b6", "difficulty": "Hard"},
     "pong": {"name": "Pong Classic", "icon": "🏓", "color": "#e74c3c", "difficulty": "Hard"},
     "game2048": {"name": "2048", "icon": "🔢", "color": "#edc22e", "difficulty": "Medium"},
@@ -23,7 +24,11 @@ GAME_CONFIGS = {
     "maze": {"name": "Maze Escape", "icon": "🌀", "color": "#3498db", "difficulty": "Hard"},
     "shooting": {"name": "Shooting Gallery", "icon": "🔫", "color": "#c0392b", "difficulty": "Medium"},
     "towerstack": {"name": "Tower Stack", "icon": "🏗️", "color": "#f1c40f", "difficulty": "Easy"},
-    "colorswitch": {"name": "Color Switch", "icon": "🎨", "color": "#e91e63", "difficulty": "Hard"}
+    "towerstack_multi": {"name": "Stack Battle", "icon": "🏗️", "color": "#f1c40f", "difficulty": "Medium", "is_multiplayer": True},
+    "survival_dodge_multi": {"name": "Survival Dodge Arena", "icon": "💥", "color": "#e74c3c", "difficulty": "Hard", "is_multiplayer": True},
+    "pong_party_multi": {"name": "Pong Party", "icon": "🏓", "color": "#3498db", "difficulty": "Medium", "is_multiplayer": True},
+    "target_rush_multi": {"name": "Target Rush", "icon": "🎯", "color": "#e67e22", "difficulty": "Medium", "is_multiplayer": True},
+    "color_clash_multi": {"name": "Color Clash", "icon": "🎨", "color": "#9b59b6", "difficulty": "Hard", "is_multiplayer": True},
 }
 
 
@@ -91,14 +96,16 @@ def submit_score(user, game_key, score, play_time=0):
         # Update daily stats for cap tracking
         update_daily_stats(user.user_id, coins_earned, xp_earned)
         
-        # Award XP-based level up
+        # Award XP-based level up using new progression system
         if xp_earned > 0:
-            from src.utils.helpers import calculate_level
-            old_level = user.player_level
-            new_level, _, _ = calculate_level(user.xp)
-            if new_level > old_level:
-                user.player_level = new_level
+            from src.services.progression_service import add_xp
+            level_up_occurred, new_level, rewards = add_xp(user, xp_earned, source='game')
+            
+            if level_up_occurred:
                 unlock_achievement(user, 'level_up', f'Reached Level {new_level}!')
+                
+                # Also sync the old player_level field for backwards compatibility
+                user.player_level = new_level
         
         # Check if high score (only for verified scores)
         if is_high_score and is_valid:
@@ -112,6 +119,9 @@ def submit_score(user, game_key, score, play_time=0):
         db.session.commit()
         
         logger.info(f"Score submitted: {user.username} - {game_key} - {score} (coins: {coins_earned}, xp: {xp_earned})")
+        
+        # Check for various achievements
+        check_achievements(user, game_key, score, is_high_score, is_valid)
         
         return True, {
             'coins_earned': coins_earned,
@@ -157,21 +167,44 @@ def get_user_scores(user_id, limit=10):
 def get_leaderboard(game_key=None, limit=10):
     """Get global leaderboard (verified scores only)"""
     try:
-        query = db.session.query(
-            Score.user_id,
-            User.username,
-            db.func.sum(Score.score).label('total_score'),
-            db.func.count(Score.score_id).label('games_played')
-        ).join(User, Score.user_id == User.user_id)\
-         .filter(Score.verified == True) # Only include verified scores
+        # Use raw SQL to avoid SQLAlchemy issues
+        from sqlalchemy import text
         
         if game_key:
-            query = query.filter(Score.game_key == game_key)
+            query_str = """
+                SELECT u.user_id, u.username, 
+                       COALESCE(SUM(s.score), 0) as total_score,
+                       COUNT(s.score_id) as games_played
+                FROM users u
+                LEFT JOIN scores s ON u.user_id = s.user_id AND s.verified = 1 AND s.game_key = :game_key
+                GROUP BY u.user_id, u.username
+                HAVING games_played > 0
+                ORDER BY total_score DESC
+                LIMIT :limit
+            """
+            result = db.session.execute(text(query_str), {'game_key': game_key, 'limit': limit})
+        else:
+            query_str = """
+                SELECT u.user_id, u.username, 
+                       COALESCE(SUM(s.score), 0) as total_score,
+                       COUNT(s.score_id) as games_played
+                FROM users u
+                LEFT JOIN scores s ON u.user_id = s.user_id AND s.verified = 1
+                GROUP BY u.user_id, u.username
+                HAVING games_played > 0
+                ORDER BY total_score DESC
+                LIMIT :limit
+            """
+            result = db.session.execute(text(query_str), {'limit': limit})
         
-        leaderboard = query.group_by(Score.user_id, User.username)\
-            .order_by(db.desc('total_score'))\
-            .limit(limit)\
-            .all()
+        leaderboard = []
+        for row in result:
+            leaderboard.append({
+                'user_id': row[0],
+                'username': row[1],
+                'total_score': int(row[2]) if row[2] else 0,
+                'games_played': int(row[3]) if row[3] else 0
+            })
         
         return leaderboard
     except Exception as e:
@@ -256,3 +289,69 @@ def seed_games():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error seeding games: {e}")
+
+
+def check_achievements(user, game_key, score, is_high_score, is_valid):
+    """Check and unlock achievements based on user progress"""
+    try:
+        if not is_valid:
+            return  # Don't award achievements for invalid scores
+
+        # First Game Achievement
+        if user.total_games_played == 1:
+            unlock_achievement(user, 'first_game', 'Welcome to Arcadia Hub!')
+
+        # Games Played Milestones
+        games_milestones = [10, 50, 100, 500, 1000]
+        for milestone in games_milestones:
+            if user.total_games_played == milestone:
+                unlock_achievement(user, f'games_{milestone}', f'Played {milestone} Games!')
+
+        # High Score Achievements
+        if is_high_score:
+            unlock_achievement(user, f'high_score_{game_key}', f'High Score in {GAME_CONFIGS.get(game_key, {}).get("name", game_key)}!')
+
+        # Score-based achievements
+        if score >= 1000:
+            unlock_achievement(user, 'score_1000', 'Thousand Point Club!')
+        if score >= 10000:
+            unlock_achievement(user, 'score_10000', 'Ten Thousand Club!')
+        if score >= 50000:
+            unlock_achievement(user, 'score_50000', 'Fifty Thousand Club!')
+
+        # Daily Streak Achievements
+        if user.streak >= 7:
+            unlock_achievement(user, 'streak_7', 'Week Warrior!')
+        if user.streak >= 30:
+            unlock_achievement(user, 'streak_30', 'Monthly Master!')
+
+        # Coin Collector
+        if user.coins >= 1000:
+            unlock_achievement(user, 'coins_1000', 'Coin Collector!')
+        if user.coins >= 10000:
+            unlock_achievement(user, 'coins_10000', 'Coin Hoarder!')
+
+        # Level Achievements
+        if user.player_level >= 5:
+            unlock_achievement(user, 'level_5', 'Rising Star!')
+        if user.player_level >= 10:
+            unlock_achievement(user, 'level_10', 'Arcade Veteran!')
+        if user.player_level >= 25:
+            unlock_achievement(user, 'level_25', 'Gaming Legend!')
+
+        # Game-specific achievements
+        if game_key == 'reaction' and score < 200:
+            unlock_achievement(user, 'lightning_fast', 'Lightning Fast Reactions!')
+        elif game_key == 'snake' and score >= 1000:
+            unlock_achievement(user, 'snake_master', 'Snake Master!')
+        elif game_key == 'tictactoe':
+            unlock_achievement(user, 'tic_tac_toe_winner', 'Tic Tac Toe Champion!')
+
+        # Perfect Game (if applicable)
+        # This would need game-specific logic
+
+        db.session.commit()  # Commit any new achievements
+
+    except Exception as e:
+        logger.error(f"Error checking achievements: {e}")
+        db.session.rollback()

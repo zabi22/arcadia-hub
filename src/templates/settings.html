@@ -13,20 +13,26 @@
     <div class="col-md-6">
         <div class="card p-4">
             <h4 class="text-white mb-3"><i class="bi bi-person"></i> Account Information</h4>
-            <div class="mb-3">
-                <label class="text-white-50">Username</label>
-                <input type="text" class="form-control bg-dark text-white border-secondary" value="{{ user.username }}" disabled>
-            </div>
-            <div class="mb-3">
-                <label class="text-white-50">Email</label>
-                <input type="email" class="form-control bg-dark text-white border-secondary" value="{{ user.email }}" disabled>
-            </div>
-            <div class="mb-3">
-                <label class="text-white-50">Member Since</label>
-                <input type="text" class="form-control bg-dark text-white border-secondary" 
-                       value="{{ user.created_at.strftime('%B %d, %Y') if user.created_at else 'Unknown' }}" disabled>
-            </div>
-            <small class="text-white-50">Contact support to change account details</small>
+            <form id="profileForm">
+                <div class="mb-3">
+                    <label class="text-white-50">Username</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" id="username" value="{{ user.username }}" required minlength="3">
+                    <div class="invalid-feedback">Username must be at least 3 characters</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-white-50">Email</label>
+                    <input type="email" class="form-control bg-dark text-white border-secondary" id="email" value="{{ user.email }}" required>
+                    <div class="invalid-feedback">Please enter a valid email address</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-white-50">Bio</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" id="bio" rows="3" maxlength="500" placeholder="Tell us about yourself...">{{ user.bio or '' }}</textarea>
+                    <small class="text-white-50">Max 500 characters</small>
+                </div>
+                <button type="submit" class="btn btn-accent" id="saveProfile">
+                    <i class="bi bi-check-circle"></i> Save Profile
+                </button>
+            </form>
         </div>
     </div>
     
@@ -117,6 +123,55 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Save profile form
+    document.getElementById('profileForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        if (this.checkValidity()) {
+            const saveBtn = document.getElementById('saveProfile');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+            const profileData = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                bio: document.getElementById('bio').value
+            };
+
+            try {
+                const response = await fetch('{{ url_for("main.update_profile_api") }}', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(profileData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('success', data.message);
+                    // Update the displayed username in the navbar if it changed
+                    const navbarUsername = document.querySelector('.navbar .text-white');
+                    if (navbarUsername && profileData.username !== '{{ user.username }}') {
+                        navbarUsername.textContent = profileData.username;
+                    }
+                } else {
+                    showAlert('danger', data.message);
+                }
+            } catch (error) {
+                showAlert('danger', 'Failed to update profile. Please try again.');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalText;
+            }
+        } else {
+            // Trigger validation messages
+            this.classList.add('was-validated');
+        }
+    });
+
     function showAlert(type, message) {
         const alert = document.createElement('div');
         alert.className = `alert alert-${type} alert-dismissible fade show`;

@@ -5,6 +5,7 @@ from src.services.shop_service import purchase_item, get_user_inventory, equip_i
 from src.services.friend_service import send_friend_request, accept_friend_request, reject_friend_request, get_friend_requests, get_friends, remove_friendship, search_users
 from src.utils.helpers import get_current_user, login_required, calculate_level, update_user_activity
 from src.utils.logger import get_logger
+from src.services.notification_service import get_user_notifications, mark_notification_as_read, mark_all_notifications_as_read
 
 logger = get_logger()
 
@@ -550,3 +551,47 @@ def get_chat_messages():
     except Exception as e:
         logger.error(f"Error fetching chat messages: {e}")
         return jsonify({'messages': []}), 500
+
+@main_bp.route('/api/notifications', methods=['GET'])
+@login_required
+def get_notifications_api():
+    """API endpoint to get user notifications"""
+    try:
+        user = get_current_user()
+        notifications = get_user_notifications(user.user_id)
+        return jsonify({'success': True, 'notifications': notifications})
+    except Exception as e:
+        logger.error(f"Error fetching notifications: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+@main_bp.route('/api/notifications/read', methods=['POST'])
+@login_required
+def mark_read_api():
+    """API endpoint to mark notification as read"""
+    try:
+        data = request.get_json()
+        notification_id = data.get('notification_id')
+        user = get_current_user()
+        
+        if notification_id:
+            success = mark_notification_as_read(notification_id, user.user_id)
+        else:
+            success = mark_all_notifications_as_read(user.user_id)
+            
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error marking notification read: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+@main_bp.route('/multiplayer')
+@login_required
+def multiplayer_lobby():
+    """Multiplayer lobby page"""
+    return render_template('multiplayer_lobby.html')
+
+@main_bp.route('/ranked')
+@login_required
+def ranked_page():
+    """Ranked progression page"""
+    user = get_current_user()
+    return render_template('ranked.html', user=user)

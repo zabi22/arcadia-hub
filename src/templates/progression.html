@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Progression - Arcadia Hub{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="text-white mb-4">
+                <i class="fas fa-chart-line"></i> Player Progression
+            </h2>
+        </div>
+    </div>
+
+    <!-- Current Level Card -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card bg-dark border-accent h-100">
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 text-center">
+                            <div class="level-circle" style="width: 120px; height: 120px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                <div>
+                                    <div class="h4 text-white mb-0" id="currentLevel">--</div>
+                                    <small class="text-white-50">LEVEL</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <h4 class="text-white mb-3">Progression Status</h4>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-white-50">Experience Progress</span>
+                                    <span class="text-accent" id="xpText">0 / 0 XP</span>
+                                </div>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar bg-gradient"
+                                         id="xpBar"
+                                         role="progressbar"
+                                         style="width: 0%"
+                                         aria-valuenow="0"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                        <span id="xpPercent" class="ps-2">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6">
+                                    <small class="text-white-50">Total XP Earned</small>
+                                    <p class="h5 text-white mb-0" id="totalXP">0</p>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-white-50">Prestige Count</small>
+                                    <p class="h5 text-warning mb-0" id="prestigeCount">0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Next Milestone Card -->
+        <div class="col-md-4">
+            <div class="card bg-dark border-info h-100">
+                <div class="card-body">
+                    <h5 class="text-info mb-3">
+                        <i class="fas fa-flag-checkered"></i> Next Milestone
+                    </h5>
+                    <div class="mb-3">
+                        <small class="text-white-50">Level <span id="nextLevel">--</span></small>
+                        <p class="h4 text-white mb-1" id="xpToNext">-- XP</p>
+                        <small class="text-white-50" id="estimatedTime">-- games away</small>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-info" id="milestoneBar" style="width: 0%"></div>
+                    </div>
+                    <p class="text-white-50 mt-2 mb-0 small">
+                        <i class="fas fa-info-circle"></i> Keep playing to reach the next level!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Rewards History -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card bg-dark border-success">
+                <div class="card-header border-success">
+                    <h5 class="text-success mb-0">
+                        <i class="fas fa-gift"></i> Level Up Rewards
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm">
+                            <thead>
+                                <tr class="text-white-50">
+                                    <th>Level</th>
+                                    <th>Coins</th>
+                                    <th>XP Required</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rewardsTable">
+                                <tr>
+                                    <td colspan="4" class="text-center text-white-50">Loading rewards...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Distribution Chart -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h5 class="text-white mb-0">
+                        <i class="fas fa-chart-bar"></i> Level Range
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="levelChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h5 class="text-white mb-0">
+                        <i class="fas fa-star"></i> Progression Stats
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="stat-row mb-3">
+                        <span class="text-white-50">Last Level Up:</span>
+                        <span class="text-white float-end" id="lastLevelUp">Never</span>
+                    </div>
+                    <div class="stat-row mb-3">
+                        <span class="text-white-50">Total Prestige:</span>
+                        <span class="text-warning float-end" id="totalPrestige">0</span>
+                    </div>
+                    <div class="stat-row mb-3">
+                        <span class="text-white-50">Current Coins:</span>
+                        <span class="text-success float-end" id="currentCoins">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="text-white-50">Avg Level/Game:</span>
+                        <span class="text-info float-end" id="avgLevelPerGame">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.border-accent {
+    border-color: #667eea !important;
+    border-width: 2px;
+}
+
+.border-info {
+    border-color: #17a2b8 !important;
+    border-width: 2px;
+}
+
+.border-success {
+    border-color: #28a745 !important;
+    border-width: 2px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+$(document).ready(function() {
+    loadProgressionData();
+
+    function loadProgressionData() {
+        $.ajax({
+            url: '/api/player/progression',
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response.success && response.data) {
+                    const prog = response.data;
+
+                    // Update level circle
+                    $('#currentLevel').text(prog.current_level);
+                    $('#totalXP').text(prog.total_xp.toLocaleString());
+                    $('#prestigeCount').text(prog.prestige_count);
+                    $('#currentCoins').text(prog.coins.toLocaleString());
+
+                    // Update XP progress bar
+                    const xpPercent = prog.xp_level_percentage;
+                    $('#xpBar').css('width', xpPercent + '%');
+                    $('#xpPercent').text(Math.round(xpPercent) + '%');
+                    $('#xpText').text(prog.xp_in_current_level + ' / ' + (prog.xp_for_next_level - prog.xp_for_current_level) + ' XP');
+
+                    // Update last level up
+                    if (prog.last_levelup_at) {
+                        const date = new Date(prog.last_levelup_at);
+                        $('#lastLevelUp').text(date.toLocaleDateString());
+                    }
+                }
+            },
+            error: function() {
+                console.error('Failed to load progression data');
+                showAlert('Failed to load progression data', 'danger');
+            }
+        });
+
+        // Load next milestone
+        $.ajax({
+            url: '/api/player/next-milestone',
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response.success && response.data) {
+                    const milestone = response.data;
+
+                    $('#nextLevel').text(milestone.next_level);
+                    $('#xpToNext').text(milestone.xp_needed.toLocaleString() + ' XP');
+                    $('#estimatedTime').text('~' + milestone.estimated_games_to_level + ' games away');
+                    $('#milestoneBar').css('width', milestone.percentage + '%');
+
+                    $('#avgLevelPerGame').text((milestone.estimated_games_to_level > 0 ? 1 : 0));
+                }
+            }
+        });
+    }
+
+    function showAlert(message, type) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        $('body').prepend(alertHtml);
+    }
+});
+</script>
+{% endblock %}
+

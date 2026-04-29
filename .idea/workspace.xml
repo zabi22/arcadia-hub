@@ -4,7 +4,27 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4c67caab-83dd-49c4-8ead-0054364bbf72" name="Changes" comment="" />
+    <list default="true" id="4c67caab-83dd-49c4-8ead-0054364bbf72" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/src/services/progression_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/ranking_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/templates/games/color_clash_multi.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/templates/games/pong_party_multi.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/templates/games/reaction_multi.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/templates/games/survival_dodge_multi.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/templates/games/target_rush_multi.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/templates/games/towerstack_multi.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/templates/progression.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/templates/ranked.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/models/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/main_routes.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/main_routes.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/game_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/game_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/multiplayer_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/multiplayer_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/templates/dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/templates/dashboard.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/templates/games.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/templates/games.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/templates/settings.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/templates/settings.html" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -46,8 +66,10 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.app.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
     "settings.editor.selected.configurable": "preferences.pluginManager"
   }
 }]]></component>
@@ -67,6 +89,24 @@
       <updated>1777389980366</updated>
     </task>
     <servers />
+  </component>
+  <component name="com.github.evgenys91.machinet.common.dslhistory.DslHistoryState">
+    <option name="historyDtoById">
+      <map>
+        <entry key="greeting">
+          <value>
+            <ChatHistoryModel>
+              <option name="id" value="greeting" />
+              <option name="initiateTms" value="1777401089179" />
+              <option name="request" value="" />
+              <option name="response" value="" />
+              <option name="responseDescription" value="&#10;Hello, I am Machinet AI - context aware chat, which can help you with your daily programming routine. How can I help?" />
+              <option name="responseTms" value="1777401091014" />
+            </ChatHistoryModel>
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

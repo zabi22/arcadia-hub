@@ -295,3 +295,93 @@ class DailyStats(db.Model):
     __table_args__ = (
         db.UniqueConstraint('user_id', 'date', name='uq_user_daily_stats'),
     )
+
+
+# ============================================
+# PHASE 1: PROGRESSION & RANKING SYSTEM
+# ============================================
+
+class PlayerProgression(db.Model):
+    """Track detailed player progression (levels, XP)"""
+    __tablename__ = 'player_progression'
+    
+    progression_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    current_level = db.Column(db.Integer, default=1)
+    total_xp = db.Column(db.Integer, default=0)
+    xp_for_next_level = db.Column(db.Integer, default=153)  # XP needed to reach next level
+    prestige_count = db.Column(db.Integer, default=0)
+    last_levelup_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='progression', uselist=False)
+
+
+class RankTier(db.Model):
+    """Track player's current rank (seasonal)"""
+    __tablename__ = 'rank_tiers'
+    
+    rank_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
+    season = db.Column(db.Integer, default=1)
+    rank_name = db.Column(db.String(50), default='Bronze')  # Bronze, Silver, Gold, Platinum, Diamond, Legend
+    rank_points = db.Column(db.Integer, default=0)  # Elo rating-like system
+    division = db.Column(db.String(10), default='IV')  # I, II, III, IV (Bronze-Diamond), or None for Legend
+    peak_rank_name = db.Column(db.String(50), nullable=True)
+    peak_rank_points = db.Column(db.Integer, default=0)
+    games_played_ranked = db.Column(db.Integer, default=0)
+    wins_ranked = db.Column(db.Integer, default=0)
+    losses_ranked = db.Column(db.Integer, default=0)
+    last_rank_update = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'season', name='uq_user_season_rank'),
+    )
+    
+    # Relationships
+    user = db.relationship('User', backref='ranks', lazy='dynamic')
+
+
+class RankHistory(db.Model):
+    """Audit trail for rank changes"""
+    __tablename__ = 'rank_history'
+    
+    history_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
+    game_type = db.Column(db.String(50), default='ranked')  # Which game type triggered the rank change
+    old_rank_name = db.Column(db.String(50), nullable=True)
+    old_rank_points = db.Column(db.Integer, nullable=True)
+    new_rank_name = db.Column(db.String(50), nullable=True)
+    new_rank_points = db.Column(db.Integer, nullable=True)
+    points_delta = db.Column(db.Integer, default=0)  # Can be positive or negative
+    match_result = db.Column(db.String(20), nullable=True)  # win, loss, draw
+    reason = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    user = db.relationship('User', backref='rank_history', lazy='dynamic')
+
+
+class PlayerStats(db.Model):
+    """Aggregated player statistics for dashboard"""
+    __tablename__ = 'player_stats'
+    
+    stats_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    total_games = db.Column(db.Integer, default=0)
+    total_wins = db.Column(db.Integer, default=0)
+    total_losses = db.Column(db.Integer, default=0)
+    win_rate = db.Column(db.Float, default=0.0)  # Percentage (0-100)
+    avg_score = db.Column(db.Float, default=0.0)
+    avg_play_time = db.Column(db.Float, default=0.0)  # Minutes
+    favorite_game = db.Column(db.String(50), nullable=True)
+    games_by_difficulty = db.Column(db.Text, default='{"easy": 0, "medium": 0, "hard": 0}')  # JSON
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='stats', uselist=False)
+
