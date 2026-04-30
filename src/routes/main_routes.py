@@ -595,3 +595,12 @@ def ranked_page():
     """Ranked progression page"""
     user = get_current_user()
     return render_template('ranked.html', user=user)
+
+@main_bp.route('/challenge')
+@login_required
+def challenge():
+    """Daily challenges page"""
+    user = get_current_user()
+    from src.services.challenge_service import get_daily_challenges
+    challenges = get_daily_challenges(user.user_id)
+    return render_template('challenge.html', user=user, challenges=challenges)
