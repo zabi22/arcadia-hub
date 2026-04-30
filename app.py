@@ -137,13 +137,13 @@ def create_app(config_name=None):
     # Initialize database (addresses 2, 1)
     with app.app_context():
         try:
-            # Run database migrations to ensure all tables exist
-            from flask_migrate import upgrade
+            # Create all database tables if they don't exist
+            # Use create_all for production deployment since migrations aren't committed
             try:
-                upgrade()
-                app.logger.info("Database migrations completed successfully")
-            except Exception as migrate_e:
-                app.logger.warning(f"Database migration failed: {migrate_e}")
+                db.create_all()
+                app.logger.info("Database tables created successfully")
+            except Exception as create_e:
+                app.logger.warning(f"Database table creation failed: {create_e}")
 
             # Check if tables exist before seeding
             from sqlalchemy import inspect
