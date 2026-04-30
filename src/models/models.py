@@ -343,7 +343,7 @@ class RankTier(db.Model):
     )
     
     # Relationships
-    user = db.relationship('User', backref='ranks', lazy='dynamic')
+    user = db.relationship('User', backref=db.backref('ranks', lazy='dynamic'))
 
 
 class RankHistory(db.Model):
@@ -363,7 +363,7 @@ class RankHistory(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     
     # Relationships
-    user = db.relationship('User', backref='rank_history', lazy='dynamic')
+    user = db.relationship('User', backref=db.backref('rank_history', lazy='dynamic'))
 
 
 class PlayerStats(db.Model):

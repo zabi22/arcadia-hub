@@ -137,10 +137,10 @@ def create_app(config_name=None):
     # Initialize database (addresses 2, 1)
     with app.app_context():
         try:
-            from sqlalchemy import inspect
-            inspector = inspect(db.engine)
-            if 'users' not in inspector.get_table_names():
-                db.create_all()
+            # from sqlalchemy import inspect
+            # inspector = inspect(db.engine)
+            # if 'users' not in inspector.get_table_names():
+            #     db.create_all()
             # Only seed games if the table exists and has the required columns
             try:
                 seed_games()
