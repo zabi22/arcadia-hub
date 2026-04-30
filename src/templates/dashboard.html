@@ -1,9 +1,157 @@
-from flask_socketio import SocketIO
+{% extends "base.html" %}
 
-socketio = SocketIO(app)
+{% block title %}Dashboard - Arcadia Hub{% endblock %}
 
-# Add SocketIO events (e.g., for multiplayer)
-@socketio.on('create_room')
-def handle_create_room(data):
-    # Implement room creation logic here
-    emit('room_created', {'room_id': 'example'})  # Placeholder
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="text-white mb-3">
+            <i class="bi bi-house-door"></i> Welcome back, {{ user.username }}!
+        </h1>
+        <p class="text-white-50">Ready to continue your gaming adventure?</p>
+    </div>
+</div>
+
+<!-- User Stats Overview -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <div class="card-body">
+                <i class="bi bi-trophy" style="font-size: 2rem; color: var(--neon-green);"></i>
+                <h4 class="text-white mt-2">{{ user.total_games_played or 0 }}</h4>
+                <p class="text-white-50 mb-0">Games Played</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <div class="card-body">
+                <i class="bi bi-star" style="font-size: 2rem; color: var(--neon-blue);"></i>
+                <h4 class="text-white mt-2">{{ user.player_level or 1 }}</h4>
+                <p class="text-white-50 mb-0">Player Level</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <div class="card-body">
+                <i class="bi bi-coin" style="font-size: 2rem; color: var(--neon-yellow);"></i>
+                <h4 class="text-white mt-2">{{ user.coins or 100 }}</h4>
+                <p class="text-white-50 mb-0">Coins</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <div class="card-body">
+                <i class="bi bi-lightning" style="font-size: 2rem; color: var(--neon-purple);"></i>
+                <h4 class="text-white mt-2">{{ user.xp or 0 }}</h4>
+                <p class="text-white-50 mb-0">XP Points</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h4 class="text-white mb-3">
+                <i class="bi bi-play-circle"></i> Quick Play
+            </h4>
+            <p class="text-white-50 mb-3">Jump into your favorite games instantly</p>
+            <a href="{{ url_for('main.games') }}" class="btn btn-accent btn-lg w-100">
+                <i class="bi bi-controller"></i> Browse Games
+            </a>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h4 class="text-white mb-3">
+                <i class="bi bi-trophy"></i> Competitive Play
+            </h4>
+            <p class="text-white-50 mb-3">Test your skills in ranked matches</p>
+            <a href="{{ url_for('main.ranked') }}" class="btn btn-outline-accent btn-lg w-100">
+                <i class="bi bi-flag"></i> Enter Ranked
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity & Challenges -->
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h4 class="text-white mb-3">
+                <i class="bi bi-calendar-event"></i> Daily Challenge
+            </h4>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                Complete today's challenge to earn bonus rewards!
+            </div>
+            <a href="{{ url_for('main.challenge') }}" class="btn btn-primary w-100">
+                <i class="bi bi-star"></i> View Challenge
+            </a>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h4 class="text-white mb-3">
+                <i class="bi bi-people"></i> Multiplayer
+            </h4>
+            <p class="text-white-50 mb-3">Play with friends or join public rooms</p>
+            <button class="btn btn-success w-100" onclick="createRoom()">
+                <i class="bi bi-plus-circle"></i> Create Room
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Achievement Progress -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card p-4">
+            <h4 class="text-white mb-3">
+                <i class="bi bi-award"></i> Recent Achievements
+            </h4>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card bg-dark border-secondary p-3 text-center">
+                        <i class="bi bi-play-circle" style="font-size: 2rem; color: var(--neon-blue);"></i>
+                        <h6 class="text-white mt-2">First Game</h6>
+                        <small class="text-white-50">Play your first game</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-dark border-secondary p-3 text-center">
+                        <i class="bi bi-star" style="font-size: 2rem; color: var(--neon-yellow);"></i>
+                        <h6 class="text-white mt-2">High Scorer</h6>
+                        <small class="text-white-50">Reach 1000 points</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-dark border-secondary p-3 text-center">
+                        <i class="bi bi-trophy" style="font-size: 2rem; color: var(--neon-green);"></i>
+                        <h6 class="text-white mt-2">Winner</h6>
+                        <small class="text-white-50">Win your first match</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function createRoom() {
+    // Placeholder for room creation - will be implemented with SocketIO
+    alert('Room creation feature coming soon!');
+}
+
+// Add any dashboard-specific JavaScript here
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard loaded successfully');
+});
+</script>
+{% endblock %}
