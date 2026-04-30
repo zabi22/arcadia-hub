@@ -137,19 +137,39 @@ def create_app(config_name=None):
     # Initialize database (addresses 2, 1)
     with app.app_context():
         try:
-            # from sqlalchemy import inspect
-            # inspector = inspect(db.engine)
-            # if 'users' not in inspector.get_table_names():
-            #     db.create_all()
-            # Only seed games if the table exists and has the required columns
+            # Run database migrations to ensure all tables exist
+            from flask_migrate import upgrade
             try:
-                seed_games()
-            except Exception as seed_e:
-                app.logger.warning(f"Game seeding failed (likely missing columns): {seed_e}")
-            try:
-                generate_daily_challenges()
-            except Exception as challenge_e:
-                app.logger.warning(f"Challenge generation failed: {challenge_e}")
+                upgrade()
+                app.logger.info("Database migrations completed successfully")
+            except Exception as migrate_e:
+                app.logger.warning(f"Database migration failed: {migrate_e}")
+
+            # Check if tables exist before seeding
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            existing_tables = inspector.get_table_names()
+
+            # Only seed games if the games table exists
+            if 'games' in existing_tables:
+                try:
+                    seed_games()
+                    app.logger.info("Game seeding completed successfully")
+                except Exception as seed_e:
+                    app.logger.warning(f"Game seeding failed: {seed_e}")
+            else:
+                app.logger.warning("Games table does not exist, skipping game seeding")
+
+            # Only generate daily challenges if the daily_challenges table exists
+            if 'daily_challenges' in existing_tables:
+                try:
+                    generate_daily_challenges()
+                    app.logger.info("Daily challenge generation completed successfully")
+                except Exception as challenge_e:
+                    app.logger.warning(f"Challenge generation failed: {challenge_e}")
+            else:
+                app.logger.warning("Daily challenges table does not exist, skipping challenge generation")
+
         except Exception as e:
             app.logger.error(f"DB init failed: {e}")
             db.session.rollback()
