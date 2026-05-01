@@ -100,7 +100,7 @@
                 <i class="bi bi-people"></i> Multiplayer
             </h4>
             <p class="text-white-50 mb-3">Play with friends or join public rooms</p>
-            <button class="btn btn-success w-100" onclick="createRoom()">
+            <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#createRoomModal">
                 <i class="bi bi-plus-circle"></i> Create Room
             </button>
         </div>
@@ -140,18 +140,104 @@
         </div>
     </div>
 </div>
+
+<!-- Room Creation Modal -->
+<div class="modal fade" id="createRoomModal" tabindex="-1" aria-labelledby="createRoomModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-white" id="createRoomModalLabel">
+                    <i class="bi bi-plus-circle"></i> Create Multiplayer Room
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createRoomForm">
+                    <div class="mb-3">
+                        <label for="gameSelect" class="form-label text-white">Select Game</label>
+                        <select class="form-select" id="gameSelect" required>
+                            <option value="">Choose a game...</option>
+                            <option value="reaction_multi">Reaction Arena</option>
+                            <option value="towerstack_multi">Tower Stack Battle</option>
+                            <option value="survival_dodge_multi">Survival Dodge</option>
+                            <option value="pong_party_multi">Pong Party</option>
+                            <option value="target_rush_multi">Target Rush</option>
+                            <option value="color_clash_multi">Color Clash</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="maxPlayers" class="form-label text-white">Max Players</label>
+                        <select class="form-select" id="maxPlayers">
+                            <option value="2">2 Players</option>
+                            <option value="4" selected>4 Players</option>
+                            <option value="6">6 Players</option>
+                            <option value="8">8 Players</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isPrivate">
+                            <label class="form-check-label text-white" for="isPrivate">
+                                Private Room
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-accent" onclick="submitCreateRoom()">Create Room</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function createRoom() {
-    // Placeholder for room creation - will be implemented with SocketIO
-    alert('Room creation feature coming soon!');
-}
+let socket;
 
-// Add any dashboard-specific JavaScript here
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize SocketIO
+    socket = io();
+
+    socket.on('connect', function() {
+        console.log('Connected to server');
+    });
+
+    socket.on('room_created', function(data) {
+        console.log('Room created:', data);
+        alert(`Room created! Code: ${data.room_code}`);
+        // Redirect to game or room lobby
+        window.location.href = `/game/${data.game_key}?room=${data.room_code}`;
+    });
+
+    socket.on('error', function(data) {
+        alert('Error: ' + data.message);
+    });
+
     console.log('Dashboard loaded successfully');
 });
+
+function submitCreateRoom() {
+    const game = document.getElementById('gameSelect').value;
+    const maxPlayers = parseInt(document.getElementById('maxPlayers').value);
+    const isPrivate = document.getElementById('isPrivate').checked;
+
+    if (!game) {
+        alert('Please select a game');
+        return;
+    }
+
+    socket.emit('create_room', {
+        game_key: game,
+        max_players: maxPlayers,
+        is_private: isPrivate
+    });
+
+    // Close the modal
+    var modal = bootstrap.Modal.getInstance(document.getElementById('createRoomModal'));
+    modal.hide();
+}
 </script>
 {% endblock %}

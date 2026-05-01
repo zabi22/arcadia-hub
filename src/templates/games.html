@@ -14,9 +14,9 @@
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="btn-group flex-wrap" role="group">
-            <a href="#singleplayer" class="btn btn-outline-light active" onclick="filterGames('single')">Single Player</a>
-            <a href="#multiplayer" class="btn btn-outline-light" onclick="filterGames('multi')">Multiplayer</a>
-            <a href="#all" class="btn btn-outline-light" onclick="filterGames('all')">All Games</a>
+            <a href="#singleplayer" class="btn btn-outline-light active" onclick="filterGames('single', event)">Single Player</a>
+            <a href="#multiplayer" class="btn btn-outline-light" onclick="filterGames('multi', event)">Multiplayer</a>
+            <a href="#all" class="btn btn-outline-light" onclick="filterGames('all', event)">All Games</a>
         </div>
     </div>
 </div>
@@ -51,13 +51,24 @@
 
 {% block extra_js %}
 <script>
-function filterGames(type) {
+function filterGames(type, clickEvent = null) {
     const cards = document.querySelectorAll('.game-card');
     const buttons = document.querySelectorAll('.btn-group .btn');
 
     // Update button states
     buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+
+    // Set active button safely
+    if (clickEvent && clickEvent.target) {
+        clickEvent.target.classList.add('active');
+    } else {
+        // Find button matching the type and activate it
+        buttons.forEach(btn => {
+            if (btn.textContent.toLowerCase().includes(type === 'single' ? 'single' : type === 'all' ? 'all' : 'multiplayer')) {
+                btn.classList.add('active');
+            }
+        });
+    }
 
     cards.forEach(card => {
         if (type === 'all') {

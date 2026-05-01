@@ -124,11 +124,27 @@
                 <i class="bi bi-trophy"></i> Leaderboard
             </h4>
             <div class="leaderboard">
-                <div class="text-center text-white-50 py-4">
-                    <i class="bi bi-list-ol" style="font-size: 3rem;"></i>
-                    <p class="mt-2">Season leaderboard coming soon!</p>
-                    <small>Compete to climb the ranks</small>
-                </div>
+                {% if leaderboard %}
+                    {% for entry in leaderboard %}
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-{% if entry.rank == 1 %}warning{% elif entry.rank == 2 %}secondary{% elif entry.rank == 3 %}danger{% else %}dark{% endif %} me-2">
+                                #{{ entry.rank }}
+                            </span>
+                            <span class="text-white">{{ entry.username }}</span>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-white-50">{{ entry.rating }} Elo</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-white-50 py-4">
+                        <i class="bi bi-list-ol" style="font-size: 3rem;"></i>
+                        <p class="mt-2">No ranked players yet</p>
+                        <small>Be the first to climb the ranks!</small>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

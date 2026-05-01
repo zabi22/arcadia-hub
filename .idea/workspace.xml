@@ -5,25 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4c67caab-83dd-49c4-8ead-0054364bbf72" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/services/progression_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/services/ranking_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/templates/games/color_clash_multi.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/templates/games/pong_party_multi.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/templates/games/reaction_multi.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/templates/games/survival_dodge_multi.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/templates/games/target_rush_multi.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/templates/games/towerstack_multi.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/templates/progression.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/templates/ranked.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/models/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/routes/main_routes.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/main_routes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/services/game_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/game_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/services/multiplayer_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/multiplayer_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/templates/dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/templates/dashboard.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/templates/games.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/templates/games.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/templates/settings.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/templates/settings.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/templates/ranked.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/templates/ranked.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,6 +19,9 @@
     <persistenceIdMap>
       <entry key="_/Users/zabihullahahmadzai/PycharmProjects/PythonProject15" value="3CzYgVy4QkVkQT6ryZcjEofj5dW" />
     </persistenceIdMap>
+  </component>
+  <component name="CopilotUserSelectedChatMode">
+    <option name="chatModeId" value="Ask" />
   </component>
   <component name="Git.Settings">
     <option name="PUSH_AUTO_UPDATE" value="true" />
@@ -63,16 +51,16 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.app.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "settings.editor.selected.configurable": "preferences.pluginManager"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.app.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -93,6 +81,21 @@
   <component name="com.github.evgenys91.machinet.common.dslhistory.DslHistoryState">
     <option name="historyDtoById">
       <map>
+        <entry key="f739e4">
+          <value>
+            <ChatHistoryModel>
+              <option name="id" value="f739e4" />
+              <option name="initiateTms" value="1777490533443" />
+              <option name="request" value=" (.venv) zabihullahahmadzai@Zabihullahs-MacBook-Air PythonProject15 % python app.py&#10;Error seeding games: On relationship RankTier.user, 'dynamic' loaders cannot be used with many-to-one/one-to-one relationships and/or uselist=False.&#10;Error generating daily challenges: One or more mappers failed to initialize - can't proceed with initialization of other mappers. Triggering mapper: 'Mapper[RankTier(rank_tiers)]'. Original exception was: On relationship RankTier.user, 'dynamic' loaders cannot be used with many-to-one/one-to-one relationships and/or uselist=False." />
+              <option name="response" value="" />
+              <option name="usedLocalFilePaths">
+                <list>
+                  <option value="/var/folders/lj/hz6x7rg12vv_s74m7djydy500000gn/T/IntelliJEasyCodeDiff/copy_settings.html" />
+                </list>
+              </option>
+            </ChatHistoryModel>
+          </value>
+        </entry>
         <entry key="greeting">
           <value>
             <ChatHistoryModel>

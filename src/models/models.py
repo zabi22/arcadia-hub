@@ -115,6 +115,7 @@ class Inventory(db.Model):
     item_id = db.Column(db.String(100), nullable=False)
     item_type = db.Column(db.String(50))
     is_equipped = db.Column(db.Boolean, default=False)
+    quantity = db.Column(db.Integer, default=1)
     acquired_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     __table_args__ = (

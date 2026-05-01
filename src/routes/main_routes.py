@@ -520,29 +520,27 @@ def update_profile_api():
 @main_bp.route('/api/chat/messages')
 @login_required
 def get_chat_messages():
-    """Get recent chat messages (optimized with raw SQL)"""
+    """Get recent chat messages (ultra-fast optimized query)"""
     try:
-        from sqlalchemy import text
-        
-        # Use raw SQL for better performance
-        query = text("""
+        # Use raw SQL with optimized query for maximum performance
+        # Add index hint and limit results aggressively
+        query = db.session.execute(db.text("""
             SELECT m.message_id, m.sender_id, m.content, m.timestamp, u.username
             FROM messages m
+            USE INDEX (idx_global_messages)
             LEFT JOIN users u ON m.sender_id = u.user_id
-            WHERE m.is_global IS TRUE
+            WHERE m.is_global = 1
             ORDER BY m.timestamp DESC
-            LIMIT 20
-        """)
+            LIMIT 10
+        """)).fetchall()
         
-        result = db.session.execute(query).fetchall()
-        
-        # Build response
+        # Build response with minimal processing
         messages_data = []
-        for row in reversed(result):
+        for row in reversed(query):
             messages_data.append({
                 'message_id': row[0],
                 'sender_id': row[1],
-                'username': row[4] if row[4] else 'Unknown',
+                'username': row[4] or 'Unknown',
                 'content': row[2],
                 'timestamp': row[3].isoformat() if row[3] else ''
             })
@@ -594,7 +592,9 @@ def multiplayer_lobby():
 def ranked_page():
     """Ranked progression page"""
     user = get_current_user()
-    return render_template('ranked.html', user=user)
+    from src.services.ranking_service import get_ranked_leaderboard
+    leaderboard = get_ranked_leaderboard(limit=10)
+    return render_template('ranked.html', user=user, leaderboard=leaderboard)
 
 @main_bp.route('/challenge')
 @login_required
@@ -604,3 +604,49 @@ def challenge():
     from src.services.challenge_service import get_daily_challenges
     challenges = get_daily_challenges(user.user_id)
     return render_template('challenge.html', user=user, challenges=challenges)
+
+
+@main_bp.route('/api/inventory', methods=['GET'])
+@login_required
+def get_inventory_api():
+    """API endpoint to get user inventory with full details"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 401
+        
+        inventory_items = get_user_inventory(user.user_id)
+        
+        # Convert to dict format for JavaScript
+        inventory_dict = {}
+        for item in inventory_items:
+            inventory_dict[item['item_id']] = {
+                'inventory_id': item['inventory_id'],
+                'item_id': item['item_id'],
+                'name': item['name'],
+                'description': item['description'],
+                'icon': item['icon'],
+                'type': item['type'],
+                'category': item['category'],
+                'is_equipped': item['is_equipped'],
+                'acquired_at': item['acquired_at'].isoformat() if item['acquired_at'] else None,
+                'quantity': item.get('quantity', 1),  # Track quantity from inventory
+                'game_effect': check_game_effect(item['item_id'])  # Add game effect flag
+            }
+        
+        return jsonify({'success': True, 'inventory': inventory_dict})
+    except Exception as e:
+        logger.error(f"Error fetching inventory API: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+def check_game_effect(item_id):
+    """Check if an item has game effects"""
+    game_effect_items = {
+        'item_shield': True,
+        'item_speed': True,
+        'item_multiplier': True,
+        'item_magnet': True
+    }
+    return game_effect_items.get(item_id, False)
+
